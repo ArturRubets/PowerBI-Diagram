@@ -12,27 +12,17 @@
         }
     ],
     "objects": {
-        "dataPoint": {
-            "displayName": "Data colors",
+        "enableAxis": {
+            "displayName": "Enable Axis",
             "properties": {
-                "defaultColor": {
-                    "displayName": "Default color",
-                    "type": {
-                        "fill": {
-                            "solid": {
-                                "color": true
-                            }
-                        }
-                    }
-                },
-                "showAllDataPoints": {
-                    "displayName": "Show all",
+                "show": {
+                    "displayName": "Enable Axis",
                     "type": {
                         "bool": true
                     }
                 },
                 "fill": {
-                    "displayName": "Fill",
+                    "displayName": "Color",
                     "type": {
                         "fill": {
                             "solid": {
@@ -40,19 +30,31 @@
                             }
                         }
                     }
-                },
-                "fillRule": {
-                    "displayName": "Color saturation",
+                }
+            }
+        },
+        "colorSelector": {
+            "displayName": "Data Colors",
+            "properties": {
+                "fill": {
+                    "displayName": "Color",
                     "type": {
-                        "fill": {}
-                    }
-                },
-                 "fontSize": {
-                    "displayName": "Text Size",
-                    "type": {
-                        "formatting": {
-                            "fontSize": true
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
                         }
+                    }
+                }
+            }
+        },
+        "generalView": {
+            "displayName": "General View",
+            "properties": {
+                "opacity": {
+                    "displayName": "Bars Opacity",
+                    "type": {
+                        "integer": true
                     }
                 }
             }
@@ -60,13 +62,20 @@
     },
     "dataViewMappings": [
         {
+            "conditions": [
+                {
+                    "category": {
+                        "max": 1
+                    },
+                    "measure": {
+                        "max": 1
+                    }
+                }
+            ],
             "categorical": {
                 "categories": {
                     "for": {
                         "in": "category"
-                    },
-                    "dataReductionAlgorithm": {
-                        "top": {}
                     }
                 },
                 "values": {
@@ -80,5 +89,10 @@
                 }
             }
         }
-    ]
+    ],
+    "drilldown": {
+        "roles": [
+            "category"
+        ]
+    }
 }
