@@ -160,7 +160,10 @@ export class BarChart implements IVisual {
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
         this.element = options.element;
-
+        this.selectionManager = options.host.createSelectionManager();
+        this.selectionManager.registerOnSelectCallback(() => {
+            this.syncSelectionState(this.barSelection, <ISelectionId[]>this.selectionManager.getSelectionIds());
+        });
 
 
         this.svg = d3Select(options.element)
@@ -251,6 +254,46 @@ export class BarChart implements IVisual {
                     });
                 (<Event>d3Event).stopPropagation();
             }
+        });
+    }
+    private syncSelectionState(
+        selection: Selection<BarChartDataPoint>,
+        selectionIds: ISelectionId[]
+    ): void {
+        if (!selection || !selectionIds) {
+            return;
+        }
+
+        if (!selectionIds.length) {
+            const opacity: number = this.barChartSettings.generalView.opacity / 100;
+            selection
+                .style("fill-opacity", opacity)
+                .style("stroke-opacity", opacity);
+            return;
+        }
+
+        const self: this = this;
+
+        selection.each(function (barDataPoint: BarChartDataPoint) {
+            const isSelected: boolean = self.isSelectionIdInArray(selectionIds, barDataPoint.selectionId);
+
+            const opacity: number = isSelected
+                ? BarChart.Config.solidOpacity
+                : BarChart.Config.transparentOpacity;
+
+            d3Select(this)
+                .style("fill-opacity", opacity)
+                .style("stroke-opacity", opacity);
+        });
+    }
+
+    private isSelectionIdInArray(selectionIds: ISelectionId[], selectionId: ISelectionId): boolean {
+        if (!selectionIds || !selectionId) {
+            return false;
+        }
+
+        return selectionIds.some((currentSelectionId: ISelectionId) => {
+            return currentSelectionId.includes(selectionId);
         });
     }
 
