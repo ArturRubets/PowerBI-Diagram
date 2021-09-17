@@ -7,7 +7,7 @@ import {
     scaleLinear,
     scaleBand
 } from "d3-scale";
-import { axisBottom } from "d3-axis";
+import { axisBottom, axisLeft } from "d3-axis";
 import "core-js/stable";
 import "./../style/visual.less";
 import powerbi from "powerbi-visuals-api";
@@ -140,6 +140,7 @@ export class BarChart implements IVisual {
     private barChartSettings: BarChartSettings;
     private barDataPoints: BarChartDataPoint[];
     private xAxis: Selection<SVGElement>;
+    private yAxis: Selection<SVGElement>;
     private barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
 
     static Config = {
@@ -171,9 +172,17 @@ export class BarChart implements IVisual {
             .append('g')
             .classed('barContainer', true);
 
+
         this.xAxis = this.svg
             .append('g')
             .classed('xAxis', true);
+
+
+
+        this.yAxis = this.svg
+            .append('g')
+            .classed('yAxis', true);
+
     }
 
     public update(options: VisualUpdateOptions) {
@@ -184,7 +193,8 @@ export class BarChart implements IVisual {
         let width = options.viewport.width;
         let height = options.viewport.height;
 
-        console.log(viewModel);
+        let margins = BarChart.Config.margins;
+        console.log(margins);
 
 
         this.svg
@@ -192,27 +202,42 @@ export class BarChart implements IVisual {
             .attr("height", height);
 
         if (settings.enableAxis.show) {
-            let margins = BarChart.Config.margins;
-            height -= margins.bottom;
+
+            height -= margins.bottom ;   //высота диаграмки
         }
 
+        width -= margins.left * 4
 
+        //Смещение диаграм
+        this.barContainer.attr('transform', `translate(${margins.left * 2}, ${margins.top*2})`);
+        //Смещение оси x
+        this.xAxis.attr('transform', `translate(${margins.left}, ${height})`);
+        //Смещение оси y
+        this.yAxis.attr('transform', `translate(${margins.left}, 0)`)
+
+        
         this.xAxis
             .style("font-size", Math.min(height, width) * BarChart.Config.xAxisFontMultiplier)
             .style("fill", settings.enableAxis.fill);
 
-        let yScale = scaleLinear()
-            .domain([0, viewModel.dataMax])
-            .range([height, 0]);
 
+        //функция интерполяции
+        let yScale = scaleLinear()
+            .domain([viewModel.dataMax * 1.1, 0])
+            .range([0, height]);
+        //функция интерполяции
         let xScale = scaleBand()
             .domain(viewModel.dataPoints.map(d => d.category))
             .rangeRound([0, width])
-            .padding(0.2);
+            .padding(0.5);
 
+        //создаем ось
         let xAxis = axisBottom(xScale);
+        //создаем ось
+        let yAxis = axisLeft(yScale).ticks(6);
+
         const colorObjects = options.dataViews[0] ? options.dataViews[0].metadata.objects : null;
-        this.xAxis.attr('transform', 'translate(0, ' + height + ')')
+        this.xAxis
             .call(xAxis)
             .attr("color", getAxisTextFillColor(
                 colorObjects,
@@ -220,9 +245,16 @@ export class BarChart implements IVisual {
             )
             );
 
+        this.yAxis.call(yAxis)
+            .attr("color", getAxisTextFillColor(
+                colorObjects,
+                defaultSettings.enableAxis.fill
+            )
+            );
 
-        const textNodes = this.xAxis.selectAll("text")
-        BarChart.wordBreak(textNodes, xScale.bandwidth(), height);
+
+        // const textNodes = this.xAxis.selectAll("text")
+        // BarChart.wordBreak(textNodes, xScale.bandwidth(), height);
 
 
         this.barSelection = this.barContainer
@@ -239,7 +271,7 @@ export class BarChart implements IVisual {
         const opacity: number = viewModel.settings.generalView.opacity / 100;
 
         barSelectionMerged
-            .attr("width", xScale.bandwidth())
+            .attr("width", xScale.bandwidth()) //xScale.bandwidth())
             .attr("height", d => height - yScale(<number>d.value))
             .attr("y", d => yScale(<number>d.value))
             .attr("x", d => xScale(d.category))
