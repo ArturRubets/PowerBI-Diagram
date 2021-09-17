@@ -23,8 +23,8 @@ import ISelectionId = powerbi.visuals.ISelectionId;
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import { VisualSettings, BarChartSettings } from "./settings";
 type Selection<T1, T2 = T1> = d3.Selection<any, T1, any, T2>;
-import { dataViewObjects, dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
-
+import { dataRoleHelper, dataViewObjects, dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
+import { textMeasurementService } from "powerbi-visuals-utils-formattingutils";
 
 interface BarChartDataPoint {
     value: powerbi.PrimitiveValue;
@@ -42,7 +42,7 @@ interface BarChartViewModel {
 
 let defaultSettings: BarChartSettings = {
     enableAxis: {
-        show: false,
+        show: true,
         fill: "#000000",
     },
     generalView: {
@@ -83,8 +83,7 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
             show: dataViewObjects.getValue(objects, {
                 objectName: "enableAxis", propertyName: "show",
             }, defaultSettings.enableAxis.show),
-            fill: dataViewObjects.getValue(objects, { objectName: "enableAxis", propertyName: "fill" },
-                defaultSettings.enableAxis.fill)
+            fill: dataViewObjects.getValue<powerbi.Fill>(objects, { objectName: "enableAxis", propertyName: "fill" }, { solid: { color: defaultSettings.enableAxis.fill } }).solid.color
         },
         generalView: {
             opacity: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "opacity" }, defaultSettings.generalView.opacity)
@@ -165,7 +164,6 @@ export class BarChart implements IVisual {
             this.syncSelectionState(this.barSelection, <ISelectionId[]>this.selectionManager.getSelectionIds());
         });
 
-
         this.svg = d3Select(options.element)
             .append('svg')
             .classed('barChart', true);
@@ -176,9 +174,6 @@ export class BarChart implements IVisual {
         this.xAxis = this.svg
             .append('g')
             .classed('xAxis', true);
-
-
-
     }
 
     public update(options: VisualUpdateOptions) {
@@ -201,6 +196,7 @@ export class BarChart implements IVisual {
             height -= margins.bottom;
         }
 
+
         this.xAxis
             .style("font-size", Math.min(height, width) * BarChart.Config.xAxisFontMultiplier)
             .style("fill", settings.enableAxis.fill);
@@ -218,7 +214,15 @@ export class BarChart implements IVisual {
         const colorObjects = options.dataViews[0] ? options.dataViews[0].metadata.objects : null;
         this.xAxis.attr('transform', 'translate(0, ' + height + ')')
             .call(xAxis)
-            .attr("color", settings.enableAxis.fill);
+            .attr("color", getAxisTextFillColor(
+                colorObjects,
+                defaultSettings.enableAxis.fill
+            )
+            );
+
+
+        const textNodes = this.xAxis.selectAll("text")
+        BarChart.wordBreak(textNodes, xScale.bandwidth(), height);
 
 
         this.barSelection = this.barContainer
@@ -233,6 +237,7 @@ export class BarChart implements IVisual {
         barSelectionMerged.classed('bar', true);
 
         const opacity: number = viewModel.settings.generalView.opacity / 100;
+
         barSelectionMerged
             .attr("width", xScale.bandwidth())
             .attr("height", d => height - yScale(<number>d.value))
@@ -255,7 +260,26 @@ export class BarChart implements IVisual {
                 (<Event>d3Event).stopPropagation();
             }
         });
+
+
+        this.barSelection
+            .exit()
+            .remove();
     }
+
+    private static wordBreak(
+        textNodes: Selection<any, SVGElement>,
+        allowedWidth: number,
+        maxHeight: number
+    ) {
+        textNodes.each(function () {
+            textMeasurementService.wordBreak(
+                this,
+                allowedWidth,
+                maxHeight);
+        });
+    }
+
     private syncSelectionState(
         selection: Selection<BarChartDataPoint>,
         selectionIds: ISelectionId[]
@@ -359,4 +383,24 @@ export class BarChart implements IVisual {
 
         return objectEnumeration;
     }
+}
+
+
+function getAxisTextFillColor(
+    objects: powerbi.DataViewObjects,
+    defaultColor: string
+): string {
+
+    return dataViewObjects.getValue<powerbi.Fill>(
+        objects,
+        {
+            objectName: "enableAxis",
+            propertyName: "fill"
+        },
+        {
+            solid: {
+                color: defaultColor,
+            }
+        },
+    ).solid.color;
 }
