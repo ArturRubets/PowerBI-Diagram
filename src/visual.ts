@@ -1,8 +1,8 @@
 "use strict";
 import {
-    event as d3Event,
     select as d3Select
 } from "d3-selection";
+
 import {
     scaleLinear,
     scaleBand
@@ -25,6 +25,9 @@ import { VisualSettings, BarChartSettings } from "./settings";
 type Selection<T1, T2 = T1> = d3.Selection<any, T1, any, T2>;
 import { dataRoleHelper, dataViewObjects, dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
 import { textMeasurementService } from "powerbi-visuals-utils-formattingutils";
+import { timeStamp } from "console";
+
+const getEvent = () => require("d3-selection").event;
 
 interface BarChartDataPoint {
     value: powerbi.PrimitiveValue;
@@ -141,7 +144,9 @@ export class BarChart implements IVisual {
     private barDataPoints: BarChartDataPoint[];
     private xAxis: Selection<SVGElement>;
     private yAxis: Selection<SVGElement>;
+    private title: Selection<SVGElement>;
     private barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
+    private dataBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
 
     static Config = {
         xScalePadding: 0.1,
@@ -150,8 +155,8 @@ export class BarChart implements IVisual {
         margins: {
             top: 0,
             right: 0,
-            bottom: 25,
-            left: 30,
+            bottom: 0,
+            left: 0,
         },
         xAxisFontMultiplier: 0.04,
     };
@@ -163,6 +168,7 @@ export class BarChart implements IVisual {
         this.selectionManager = options.host.createSelectionManager();
         this.selectionManager.registerOnSelectCallback(() => {
             this.syncSelectionState(this.barSelection, <ISelectionId[]>this.selectionManager.getSelectionIds());
+            this.syncSelectionState(this.dataBarSelection, <ISelectionId[]>this.selectionManager.getSelectionIds());
         });
 
         this.svg = d3Select(options.element)
@@ -183,6 +189,12 @@ export class BarChart implements IVisual {
             .append('g')
             .classed('yAxis', true);
 
+        this.title = this.svg
+
+            .append('text')
+            .text('Analyze')
+            .classed('title', true)
+
     }
 
     public update(options: VisualUpdateOptions) {
@@ -192,104 +204,190 @@ export class BarChart implements IVisual {
         this.barDataPoints = viewModel.dataPoints;
         let width = options.viewport.width;
         let height = options.viewport.height;
-
+        let heightBarChart;
         let margins = BarChart.Config.margins;
-        console.log(margins);
+
+        this.svg.attr("width", width).attr("height", height);
+
+        let paddingTop = height * 0.15
+        let paddingBottom = height * 0.15
+        let heightYAxis = height - paddingTop - paddingBottom
+        let paddingLeft = 40
+        let paddingRight = 40
+
+        let widthXAxis = width - paddingLeft - paddingRight
+
+        this.title.attr("transform", `translate(${paddingLeft / 2}, ${paddingTop / 2})`)
 
 
-        this.svg
-            .attr("width", width)
-            .attr("height", height);
+        //if (settings.enableAxis.show) {
 
-        if (settings.enableAxis.show) {
+        // height -= margins.top  + margins.bottom;   //высота оси y
+        // heightBarChart = height - margins.bottom //высота диаграммы
+        //}
 
-            height -= margins.bottom ;   //высота диаграмки
-        }
-
-        width -= margins.left * 4
+        //width -= margins.left * 4
 
         //Смещение диаграм
-        this.barContainer.attr('transform', `translate(${margins.left * 2}, ${margins.top*2})`);
+        this.barContainer.attr('transform', `translate(${paddingLeft}, ${0})`);
         //Смещение оси x
-        this.xAxis.attr('transform', `translate(${margins.left}, ${height})`);
+        this.xAxis.attr('transform', `translate(${paddingLeft}, ${heightYAxis + paddingTop})`);
         //Смещение оси y
-        this.yAxis.attr('transform', `translate(${margins.left}, 0)`)
+        this.yAxis.attr('transform', `translate(${paddingLeft}, ${paddingTop})`)
 
-        
-        this.xAxis
-            .style("font-size", Math.min(height, width) * BarChart.Config.xAxisFontMultiplier)
-            .style("fill", settings.enableAxis.fill);
+
+        // let xAxisFontMultiplier = 0.04
+        this.xAxis.style("font-size", 12)   //Math.min(height, width) * xAxisFontMultiplier
+        // .style("fill", settings.enableAxis.fill);
 
 
         //функция интерполяции
         let yScale = scaleLinear()
-            .domain([viewModel.dataMax * 1.1, 0])
-            .range([0, height]);
+            .domain([viewModel.dataMax, 0])
+            .range([0, heightYAxis]);
         //функция интерполяции
         let xScale = scaleBand()
             .domain(viewModel.dataPoints.map(d => d.category))
-            .rangeRound([0, width])
+            .rangeRound([0, width - paddingRight * 1.5])
             .padding(0.5);
 
-        //создаем ось
+
         let xAxis = axisBottom(xScale);
+
+        let yAxis = axisLeft(yScale).ticks(4);
+
+
+
+
+
+        //const colorObjects = options.dataViews[0] ? options.dataViews[0].metadata.objects : null;
+
         //создаем ось
-        let yAxis = axisLeft(yScale).ticks(6);
+        this.xAxis.call(xAxis);
+        //    .attr("color", getAxisTextFillColor(
+        //     colorObjects,
+        //     defaultSettings.enableAxis.fill
+        // )
+        // )
 
-        const colorObjects = options.dataViews[0] ? options.dataViews[0].metadata.objects : null;
-        this.xAxis
-            .call(xAxis)
-            .attr("color", getAxisTextFillColor(
-                colorObjects,
-                defaultSettings.enableAxis.fill
-            )
-            );
+        //создаем ось
+        this.yAxis.call(yAxis);
 
-        this.yAxis.call(yAxis)
-            .attr("color", getAxisTextFillColor(
-                colorObjects,
-                defaultSettings.enableAxis.fill
-            )
-            );
-
+        // .attr("color", getAxisTextFillColor(
+        //     colorObjects,
+        //     defaultSettings.enableAxis.fill
+        // )
+        // )
 
         // const textNodes = this.xAxis.selectAll("text")
         // BarChart.wordBreak(textNodes, xScale.bandwidth(), height);
 
 
-        this.barSelection = this.barContainer
-            .selectAll('.bar')
-            .data(this.barDataPoints);
 
-        const barSelectionMerged = this.barSelection
-            .enter()
-            .append('rect')
-            .merge(<any>this.barSelection);
+        //Размер шрифта
+        //this.xAxis.selectAll('g.tick text').attr(`font-size', '${height * 0.05}`)
 
-        barSelectionMerged.classed('bar', true);
+
+        // рисуем горизонтальные линии 
+        this.yAxis.selectAll(".tick line")
+            .classed("grid-line", true)
+            .attr("x1", -10)    // -10 для того чтобы линия начиналась от начала значения на оси Y
+            .attr("y1", -10)    // -10 для того чтобы линия стояла над значением на оси Y
+            .attr("x2", widthXAxis) // ширина линии равняется ширине оси Xs
+            .attr("y2", -10);   // -10 для того чтобы линия стояла над значением на оси Y
+
+        this.yAxis.selectAll('.tick text').classed('textYAxis', true)
+
+
+
+
+
 
         const opacity: number = viewModel.settings.generalView.opacity / 100;
 
-        barSelectionMerged
-            .attr("width", xScale.bandwidth()) //xScale.bandwidth())
-            .attr("height", d => height - yScale(<number>d.value))
-            .attr("y", d => yScale(<number>d.value))
+        //-----Создание обьекта для обрезки углов у прямоугольника, диаграмма будет иметь закругленные углы
+    //    this.barContainer
+    //         .append('defs')
+    //         .append("clipPath")
+    //         .attr("id", "round-corner")
+    //         .append("rect")
+    //         .attr("x", this.config().image.indentX)
+    //         .attr("y", this.config().image.indentY)
+    //         .attr("width", settings.card.width - this.config().image.indentX * 2)
+    //         .attr('height', settings.image.height)
+    //         .attr('rx', settings.image.borderRadius);
+
+
+        //------------------------------
+
+
+
+        //--------Создание диаграммы
+
+        this.barSelection = this.barContainer
+        .selectAll('.bar')
+        .data(this.barDataPoints);
+
+
+
+        const groupBarSelectionMerged = this.barSelection
+            .enter()
+            .append('g')         
+            .merge(<any>this.barSelection)           
+        
+
+
+        groupBarSelectionMerged
+            .append('rect')
+            .classed('bar', true)
+            .attr('rx', 10)
+            .attr("width", xScale.bandwidth())
+            .attr("height", d => heightYAxis - yScale(<number>d.value))
+            .attr("y", d => yScale(<number>d.value) + paddingTop)
             .attr("x", d => xScale(d.category))
             .style("fill-opacity", opacity)
             .style("stroke-opacity", opacity)
-            .style("fill", (dataPoint: BarChartDataPoint) => dataPoint.color);
+            .style("fill", (dataPoint: BarChartDataPoint) => dataPoint.color)
+
+            
+        //----------------------------
 
 
-        barSelectionMerged.on('click', (d) => {
+        //------Добавление числа над диаграммой
+        // this.dataBarSelection = this.barContainer
+        //     .selectAll('.barDataValue')
+        //     .data(this.barDataPoints);
+      
+        
+
+        // const dataBarSelectionMerged = this.dataBarSelection
+        //     .enter()
+        //     .append('text')
+        //     .merge(<any>this.dataBarSelection);
+
+
+            groupBarSelectionMerged
+            .append('text')
+            .classed('barDataValue', true)
+            .text((d: BarChartDataPoint) => Math.round(<number>d.value))
+            .attr("y", (d: BarChartDataPoint) => yScale(<number>d.value) + paddingTop - 5)
+            .attr("x", (d: BarChartDataPoint) => xScale(d.category) + xScale.bandwidth() / 2)
+        //-----------------------------------
+
+
+
+
+        groupBarSelectionMerged.on('click', (d) => {
             // Allow selection only if the visual is rendered in a view that supports interactivity (e.g. Report)
             if (this.host.hostCapabilities.allowInteractions) {
-                const isCtrlPressed: boolean = (<MouseEvent>d3Event).ctrlKey;
+                const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
                 this.selectionManager
                     .select(d.selectionId, isCtrlPressed)
                     .then((ids: ISelectionId[]) => {
-                        this.syncSelectionState(barSelectionMerged, ids);
+                        this.syncSelectionState(groupBarSelectionMerged.selectAll('.bar'), ids);
+                        this.syncSelectionState(dataBarSelectionMerged, ids);
                     });
-                (<Event>d3Event).stopPropagation();
+                (<Event>getEvent()).stopPropagation();
             }
         });
 
@@ -330,6 +428,7 @@ export class BarChart implements IVisual {
 
         const self: this = this;
 
+        
         selection.each(function (barDataPoint: BarChartDataPoint) {
             const isSelected: boolean = self.isSelectionIdInArray(selectionIds, barDataPoint.selectionId);
 
@@ -337,6 +436,8 @@ export class BarChart implements IVisual {
                 ? BarChart.Config.solidOpacity
                 : BarChart.Config.transparentOpacity;
 
+                console.log(opacity);
+                
             d3Select(this)
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);

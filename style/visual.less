@@ -8,9 +8,50 @@ p {
     }
 }
 
-.xAxis path {
+// Ось X
+.xAxis path, .xAxis .tick line  {
     display: none;
 }
+
+.xAxis .tick text{
+    fill: gray;
+    font-weight: 600;
+    fill-opacity: 0.9;
+}
+
+
+// Ось Y
+.yAxis path {
+    display: none;
+}
+
+.yAxis .tick line, .yAxis .tick text{
+    stroke: #000;
+    stroke-opacity: 0.05;
+    fill: gray;         
+    font-size: 12px;    //размер шрифта значений на оси Y
+    fill-opacity: 0.2;
+    font-weight: 600;
+}
+
+.textYAxis{
+    text-anchor: start; //Выравнивание значений по началу слова
+}
+
+.barContainer .barDataValue{
+    text-anchor: middle;
+    font-size: 12px;
+    font-weight: 600;
+    fill: gray;
+}
+
+//Стили для заголовка
+.title{
+    font-size: 16;
+    font-weight: 600
+            
+}
+
 .bar{
-    
+    border-top-right-radius:10px;
 }
