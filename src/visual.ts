@@ -148,6 +148,8 @@ export class BarChart implements IVisual {
     private barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private dataBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
 
+    private groupBarSelectionMerged: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
+    
     static Config = {
         xScalePadding: 0.1,
         solidOpacity: 1,
