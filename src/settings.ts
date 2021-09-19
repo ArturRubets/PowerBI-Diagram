@@ -21,4 +21,9 @@ export class BarChartSettings {
     opacity: number;
     dataOnBar:boolean;
   };
+
+  title: {
+    text: string;
+    hide:boolean;
+  };
 }

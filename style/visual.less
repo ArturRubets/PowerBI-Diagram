@@ -1,74 +1,58 @@
-p {
-    font-size: 20px;
-    font-weight: bold;
-    em {
-        background: yellow;
-        padding: 5px;
-        
-    }
-}
-
 // Ось X
-.xAxis path, .xAxis .tick line  {
-    display: none;
+.xAxis path,
+.xAxis .tick line {
+  display: none;
 }
 
-.xAxis .tick text{
-    fill: gray;
-    font-weight: 600;
-    fill-opacity: 0.9;
+.xAxis .tick text {
+  fill: gray;
+  font-weight: 600;
+  fill-opacity: 0.8;
 }
-
+// ----- Ось X
 
 // Ось Y
 .yAxis path {
-    display: none;
+  display: none;
 }
 
-//Линии ось Y
-.yAxis .tick line, .yAxis {
-    stroke: #000;
-    stroke-opacity: 0.06;
-    fill: gray;         
-    font-size: 12px;    //размер шрифта значений на оси Y
-    fill-opacity: 0.2;
-    font-weight: 600;
+//Линии
+.yAxis .tick line {
+  stroke-opacity: 0.06;
 }
 
-//Текст ось Y
-.tick text{
-    stroke: #000;
-    stroke-opacity: 0.05;
-    fill: gray;         
-    font-size: 12px;    //размер шрифта значений на оси Y
-    fill-opacity: 0.2;
-    font-weight: 600;
+//Текст
+.yAxis {
+  fill-opacity: 0.2;
+  font-weight: 600;
+  fill: gray;
+}
+// -----------  Ось Y
+
+
+
+.textYAxis {
+  text-anchor: start; //Выравнивание значений по началу слова
 }
 
-
-.textYAxis{
-    text-anchor: start; //Выравнивание значений по началу слова
+//Числа над диаграммой
+.barContainer .barDataValue {
+  font-weight: 600;
+  fill: gray;
+  text-anchor: middle;
 }
 
-.barContainer .barDataValue{
-    text-anchor: middle;
-    font-size: 12px;
-    font-weight: 600;
-    fill: gray;
+//Заголовок
+.title {
+  font-weight: 600;
+  text-anchor: start;
 }
 
-//Стили для заголовка
-.title{
-    font-size: 16;
-    font-weight: 600            
+.remove {
+  display: none;
 }
 
-.remove{
-    display: none;
-}
-
-
-
-.labelY{
-    text-anchor: middle;
+//Название оси Y
+.labelY {
+  text-anchor: start;
 }

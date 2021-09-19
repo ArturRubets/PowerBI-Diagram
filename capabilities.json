@@ -12,6 +12,23 @@
         }
     ],
     "objects": {
+        "title":{
+            "displayName": "Title",
+            "properties": {
+                "text": {
+                    "displayName": "Text",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "hide": {
+                    "displayName": "Hide",
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
         "enableAxisX": {
             "displayName": "Axis X",
             "properties": {
@@ -107,5 +124,8 @@
         "roles": [
             "category"
         ]
+    },
+    "sorting": {
+        "default": {}
     }
 }

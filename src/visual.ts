@@ -52,6 +52,10 @@ let defaultSettings: BarChartSettings = {
     generalView: {
         opacity: 100,
         dataOnBar: true
+    },
+    title: {
+        hide: false,
+        text: "Analyze"
     }
 };
 
@@ -102,6 +106,10 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
         generalView: {
             opacity: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "opacity" }, defaultSettings.generalView.opacity),
             dataOnBar: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "dataOnBar" }, defaultSettings.generalView.dataOnBar)
+        },
+        title: {
+            hide: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "hide" }, defaultSettings.title.hide),
+            text: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "text" }, defaultSettings.title.text),
         }
     };
 
@@ -165,7 +173,11 @@ export class BarChart implements IVisual {
 
     static Config = {
         solidOpacity: 1,
-        transparentOpacity: 0.4
+        transparentOpacity: 0.4,
+        xAxisFontMultiplier: 0.042,
+        yAxisFontMultiplier: 0.039,
+        titleFontMultiplier: 0.05,
+        dataOnBarFontMultiplier: 0.042,
     };
 
 
@@ -195,10 +207,6 @@ export class BarChart implements IVisual {
             .append('g')
             .classed('barContainer', true);
 
-        this.title = this.svg
-            .append('text')
-            .text('Analyze')
-            .classed('title', true)
 
         this.defs = this.svg.append('defs')
 
@@ -214,13 +222,29 @@ export class BarChart implements IVisual {
 
         this.svg.attr("width", width).attr("height", height);
 
-        let paddingTop = height * 0.15
-        let paddingBottom = height * 0.15
-        let paddingLeft = 40
-        let paddingRight = 20
+        let paddingTop = height * 0.16
+        let paddingBottom = height * 0.12
+        let paddingLeft = width * 0.045
+        let paddingRight = paddingLeft
 
-        //Центрирование заголовка
-        this.title.attr("transform", `translate(${paddingLeft / 2}, ${paddingTop / 2})`)
+        let marginFirstBar = paddingLeft
+        let marginAxisY = height * 0.035
+      
+        
+        let fontSizeAxisX = Math.min(height, width) * BarChart.Config.xAxisFontMultiplier;
+        let fontSizeAxisY = Math.min(height, width) * BarChart.Config.yAxisFontMultiplier;
+        let fontSizeTitle = Math.min(height, width) * BarChart.Config.titleFontMultiplier;
+        let fontSizeDataOnBar = Math.min(height, width) * BarChart.Config.dataOnBarFontMultiplier;
+
+        this.svg.selectAll('text.title').remove()
+        if (!settings.title.hide) {
+            this.title = this.svg
+                .append('text')
+                .text(settings.title.text)
+                .classed('title', true)
+                .attr("transform", `translate(${paddingLeft - 9}, ${fontSizeAxisY * 2})`)
+                .style('font-size', fontSizeTitle)
+        }
 
         //Убираем отступы и оси если пользователь отключил
         if (!settings.enableAxisX.show) {
@@ -254,12 +278,12 @@ export class BarChart implements IVisual {
         //функция интерполяции оси Y
         let yScale = scaleLinear()
             .domain([viewModel.dataMax, 0])
-            .range([0, heightYAxis]);
+            .range([0, heightYAxis - marginAxisY]);
         //функция интерполяции оси X
         let xScale = scaleBand()
             .domain(viewModel.dataPoints.map(d => d.category))
-            .rangeRound([0, widthXAxis])
-            .padding(0.5);
+            .rangeRound([marginFirstBar, widthXAxis])
+            .padding(0.6);
 
         //создаем оси
         let xAxis = axisBottom(xScale);
@@ -267,29 +291,32 @@ export class BarChart implements IVisual {
         this.xAxis.call(xAxis);
         this.yAxis.call(yAxis);
 
-        //Добавление названия оси Y
+        this.xAxis.style('font-size', fontSizeAxisX)
+        this.yAxis.style('font-size', fontSizeAxisY)
+
+        //Удаление названия оси перед его добавлением
         this.yAxis
             .selectAll('text.labelY')
-            .remove()    //Удаление названия оси перед его добавлением
+            .remove()
 
         if (settings.enableAxisY.label) {
+            //Добавление названия оси Y
             this.yAxis
+                .select('g.tick')
                 .append('text')
                 .classed('labelY', true)
-                .attr('x', 0)
-                .attr('y', 0)
+                .attr('x', -9)  // значения на оси x имеют атрибут x = -9
+                .attr('y', -fontSizeAxisY * 1.5)
                 .text(viewModel.measureDisplayName)
         }
-
-
 
         // рисуем горизонтальные линии 
         this.yAxis.selectAll(".tick line")
             .classed("grid-line", true)
-            .attr("x1", -10)    // -10 для того чтобы линия начиналась от начала значения на оси Y
-            .attr("y1", -10)    // -10 для того чтобы линия стояла над значением на оси Y
+            .attr("x1", -10)    // для того чтобы линия начиналась от начала значения на оси Y
+            .attr("y1", -fontSizeAxisY)    // для того чтобы линия стояла над значением на оси Y
             .attr("x2", widthXAxis) // ширина линии равняется ширине оси Xs
-            .attr("y2", -10);   // -10 для того чтобы линия стояла над значением на оси Y
+            .attr("y2", -10);   // для того чтобы линия стояла над значением на оси Y
 
         this.yAxis.selectAll('.tick text').classed('textYAxis', true)
 
@@ -347,9 +374,9 @@ export class BarChart implements IVisual {
 
 
         barSelectionMerged
-            .attr('rx', 10)
+            .attr('rx', 9)
             .attr("width", xScale.bandwidth())
-            .attr("height", d => heightYAxis - yScale(<number>d.value))
+            .attr("height", d => heightYAxis - marginAxisY - yScale(<number>d.value))
             .attr("y", d => yScale(<number>d.value))
             .attr("x", d => xScale(d.category))
             .attr("fill", (dataPoint: BarChartDataPoint, i: number) => `url(#Gradient${i + 1})`)
@@ -376,8 +403,9 @@ export class BarChart implements IVisual {
 
             dataBarSelectionMerged
                 .text((d: BarChartDataPoint) => Math.round(<number>d.value))
-                .attr("y", (d: BarChartDataPoint) => yScale(<number>d.value) - 5)
+                .attr("y", (d: BarChartDataPoint) => yScale(<number>d.value) - fontSizeDataOnBar / 2)
                 .attr("x", (d: BarChartDataPoint) => xScale(d.category) + xScale.bandwidth() / 2)
+                .style('font-size', fontSizeDataOnBar)
         } else {
             this.barContainer.selectAll('text').remove()
         }
@@ -462,6 +490,16 @@ export class BarChart implements IVisual {
         }
 
         switch (objectName) {
+            case 'title':
+                objectEnumeration.push({
+                    objectName: objectName,
+                    properties: {
+                        text: this.barChartSettings.title.text,
+                        hide: this.barChartSettings.title.hide
+                    },
+                    selector: null
+                });
+                break;
             case 'enableAxisX':
                 objectEnumeration.push({
                     objectName: objectName,
