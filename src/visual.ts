@@ -51,7 +51,8 @@ let defaultSettings: BarChartSettings = {
     },
     generalView: {
         opacity: 100,
-        dataOnBar: true
+        dataOnBar: true,
+        enableGradient: true,
     },
     title: {
         hide: false,
@@ -105,7 +106,8 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
         },
         generalView: {
             opacity: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "opacity" }, defaultSettings.generalView.opacity),
-            dataOnBar: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "dataOnBar" }, defaultSettings.generalView.dataOnBar)
+            dataOnBar: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "dataOnBar" }, defaultSettings.generalView.dataOnBar),
+            enableGradient: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "enableGradient" }, defaultSettings.generalView.enableGradient)
         },
         title: {
             hide: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "hide" }, defaultSettings.title.hide),
@@ -170,7 +172,6 @@ export class BarChart implements IVisual {
     private dataBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
 
     private gradientBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
-
     static Config = {
         solidOpacity: 1,
         transparentOpacity: 0.4,
@@ -186,8 +187,7 @@ export class BarChart implements IVisual {
         this.element = options.element;
         this.selectionManager = options.host.createSelectionManager();
         this.selectionManager.registerOnSelectCallback(() => {
-            this.syncSelectionState(this.barSelection, <ISelectionId[]>this.selectionManager.getSelectionIds());
-            this.syncSelectionState(this.dataBarSelection, <ISelectionId[]>this.selectionManager.getSelectionIds());
+            this.syncSelectionState(this.barSelection, <ISelectionId[]>this.selectionManager.getSelectionIds(), []);
         });
 
         this.svg = d3Select(options.element)
@@ -229,8 +229,8 @@ export class BarChart implements IVisual {
 
         let marginFirstBar = paddingLeft
         let marginAxisY = height * 0.035
-      
-        
+
+
         let fontSizeAxisX = Math.min(height, width) * BarChart.Config.xAxisFontMultiplier;
         let fontSizeAxisY = Math.min(height, width) * BarChart.Config.yAxisFontMultiplier;
         let fontSizeTitle = Math.min(height, width) * BarChart.Config.titleFontMultiplier;
@@ -351,10 +351,12 @@ export class BarChart implements IVisual {
             .attr("offset", "0%")   //Начать с этого цвета 
             .attr("stop-color", (dataPoint: BarChartDataPoint) => dataPoint.color)
 
-        gradientBarSelectionMerged
-            .append('stop')
-            .attr("offset", "100%") //Закончить этим цветом
-            .attr("stop-color", "white")
+        if (settings.generalView.enableGradient) {
+            gradientBarSelectionMerged
+                .append('stop')
+                .attr("offset", "100%") //Закончить этим цветом
+                .attr("stop-color", "white")
+        }
 
         //-----------------  Создание градиента
 
@@ -374,7 +376,7 @@ export class BarChart implements IVisual {
 
 
         barSelectionMerged
-            .attr('rx', 9)
+            .attr('rx', 7)
             .attr("width", xScale.bandwidth())
             .attr("height", d => heightYAxis - marginAxisY - yScale(<number>d.value))
             .attr("y", d => yScale(<number>d.value))
@@ -421,8 +423,8 @@ export class BarChart implements IVisual {
                 this.selectionManager
                     .select(d.selectionId, isCtrlPressed)
                     .then((ids: ISelectionId[]) => {
-                        this.syncSelectionState(barSelectionMerged, ids);
-                        this.syncSelectionState(dataBarSelectionMerged, ids);
+                        this.syncSelectionState(barSelectionMerged, ids,
+                            [dataBarSelectionMerged, this.xAxis.selectAll('g.tick text')]);
                     });
                 (<Event>getEvent()).stopPropagation();
             }
@@ -437,7 +439,8 @@ export class BarChart implements IVisual {
 
     private syncSelectionState(
         selection: Selection<BarChartDataPoint>,
-        selectionIds: ISelectionId[]
+        selectionIds: ISelectionId[],
+        additionalElements: Selection<any>[]
     ): void {
         if (!selection || !selectionIds) {
             return;
@@ -448,13 +451,18 @@ export class BarChart implements IVisual {
             selection
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
+
+            additionalElements.forEach(e =>
+                e.style("fill-opacity", opacity)
+                    .style("stroke-opacity", opacity)
+            )
             return;
         }
 
         const self: this = this;
 
 
-        selection.each(function (barDataPoint: BarChartDataPoint) {
+        selection.each(function (barDataPoint: BarChartDataPoint, index: number) {
             const isSelected: boolean = self.isSelectionIdInArray(selectionIds, barDataPoint.selectionId);
 
             const opacity: number = isSelected
@@ -465,6 +473,12 @@ export class BarChart implements IVisual {
             d3Select(this)
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
+
+            additionalElements.forEach(e =>
+                e.filter((d, i) => i === index)
+                    .style("fill-opacity", opacity)
+                    .style("stroke-opacity", opacity)
+            )
         });
     }
 
@@ -545,6 +559,7 @@ export class BarChart implements IVisual {
                     properties: {
                         opacity: this.barChartSettings.generalView.opacity,
                         dataOnBar: this.barChartSettings.generalView.dataOnBar,
+                        enableGradient: this.barChartSettings.generalView.enableGradient
                     },
                     validValues: {
                         opacity: {

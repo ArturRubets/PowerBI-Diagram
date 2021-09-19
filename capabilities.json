@@ -86,6 +86,12 @@
                     "type": {
                         "bool": true
                     }
+                },
+                "enableGradient": {
+                    "displayName": "Enable gradient",
+                    "type": {
+                        "bool": true
+                    }
                 }
             }
         }
