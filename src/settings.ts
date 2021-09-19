@@ -7,26 +7,18 @@ export class VisualSettings extends DataViewObjectsParser {
   public barChart: BarChartSettings = new BarChartSettings();
 }
 
-// export class dataPointSettings {
-//   // Default color
-//   public defaultColor: string = "";
-//   // Show all
-//   public showAllDataPoints: boolean = true;
-//   // Fill
-//   public fill: string = "";
-//   // Color saturation
-//   public fillRule: string = "";
-//   // Text Size
-//   public fontSize: number = 12;
-// }
-
 export class BarChartSettings {
-  enableAxis: {
+  enableAxisX: {
     show: boolean;
-    fill: string;
+  };
+
+  enableAxisY: {
+    show: boolean;
+    label:boolean;
   };
 
   generalView: {
     opacity: number;
+    dataOnBar:boolean;
   };
 }

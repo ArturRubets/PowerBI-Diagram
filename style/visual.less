@@ -25,7 +25,18 @@ p {
     display: none;
 }
 
-.yAxis .tick line, .yAxis .tick text{
+//Линии ось Y
+.yAxis .tick line, .yAxis {
+    stroke: #000;
+    stroke-opacity: 0.06;
+    fill: gray;         
+    font-size: 12px;    //размер шрифта значений на оси Y
+    fill-opacity: 0.2;
+    font-weight: 600;
+}
+
+//Текст ось Y
+.tick text{
     stroke: #000;
     stroke-opacity: 0.05;
     fill: gray;         
@@ -33,6 +44,7 @@ p {
     fill-opacity: 0.2;
     font-weight: 600;
 }
+
 
 .textYAxis{
     text-anchor: start; //Выравнивание значений по началу слова
@@ -48,10 +60,15 @@ p {
 //Стили для заголовка
 .title{
     font-size: 16;
-    font-weight: 600
-            
+    font-weight: 600            
 }
 
-.bar{
-    border-top-right-radius:10px;
+.remove{
+    display: none;
+}
+
+
+
+.labelY{
+    text-anchor: middle;
 }
