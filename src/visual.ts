@@ -44,19 +44,25 @@ interface BarChartViewModel {
 let defaultSettings: BarChartSettings = {
     enableAxisX: {
         show: true,
+        fontSize: 16
     },
     enableAxisY: {
         show: true,
-        label: false
+        label: false,
+        fontSize: 16,
+        fontSizeLabel: 14,
+        labelText: "Units"
     },
     generalView: {
         opacity: 100,
         dataOnBar: true,
         enableGradient: true,
+        fontSizeDataOnBar: 7
     },
     title: {
         hide: false,
-        text: "Analyze"
+        text: "Analyze",
+        fontSizeTitle: 22
     }
 };
 
@@ -95,6 +101,9 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
             show: dataViewObjects.getValue(objects, {
                 objectName: "enableAxisX", propertyName: "show",
             }, defaultSettings.enableAxisX.show),
+            fontSize: dataViewObjects.getValue(objects, {
+                objectName: "enableAxisX", propertyName: "fontSize",
+            }, defaultSettings.enableAxisX.fontSize),
         },
         enableAxisY: {
             show: dataViewObjects.getValue(objects, {
@@ -102,16 +111,27 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
             }, defaultSettings.enableAxisY.show),
             label: dataViewObjects.getValue(objects, {
                 objectName: "enableAxisY", propertyName: "label",
-            }, defaultSettings.enableAxisY.label)
+            }, defaultSettings.enableAxisY.label),
+            fontSize: dataViewObjects.getValue(objects, {
+                objectName: "enableAxisY", propertyName: "fontSize",
+            }, defaultSettings.enableAxisY.fontSize),
+            fontSizeLabel: dataViewObjects.getValue(objects, {
+                objectName: "enableAxisY", propertyName: "fontSizeLabel",
+            }, defaultSettings.enableAxisY.fontSizeLabel),
+            labelText: dataViewObjects.getValue(objects, {
+                objectName: "enableAxisY", propertyName: "labelText",
+            }, defaultSettings.enableAxisY.labelText),
         },
         generalView: {
             opacity: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "opacity" }, defaultSettings.generalView.opacity),
             dataOnBar: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "dataOnBar" }, defaultSettings.generalView.dataOnBar),
-            enableGradient: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "enableGradient" }, defaultSettings.generalView.enableGradient)
+            enableGradient: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "enableGradient" }, defaultSettings.generalView.enableGradient),
+            fontSizeDataOnBar: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "fontSizeDataOnBar" }, defaultSettings.generalView.fontSizeDataOnBar)
         },
         title: {
             hide: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "hide" }, defaultSettings.title.hide),
             text: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "text" }, defaultSettings.title.text),
+            fontSizeTitle: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "fontSizeTitle" }, defaultSettings.title.fontSizeTitle)
         }
     };
 
@@ -231,10 +251,18 @@ export class BarChart implements IVisual {
         let marginAxisY = height * 0.035
 
 
-        let fontSizeAxisX = Math.min(height, width) * BarChart.Config.xAxisFontMultiplier;
-        let fontSizeAxisY = Math.min(height, width) * BarChart.Config.yAxisFontMultiplier;
-        let fontSizeTitle = Math.min(height, width) * BarChart.Config.titleFontMultiplier;
-        let fontSizeDataOnBar = Math.min(height, width) * BarChart.Config.dataOnBarFontMultiplier;
+        // let fontSizeAxisX = Math.min(height, width) * BarChart.Config.xAxisFontMultiplier;
+        //let fontSizeAxisY = Math.min(height, width) * BarChart.Config.yAxisFontMultiplier;
+        //let fontSizeTitle = Math.min(height, width) * BarChart.Config.titleFontMultiplier;
+
+
+
+        let fontSizeDataOnBar = settings.generalView.fontSizeDataOnBar //Math.min(height, width) * BarChart.Config.dataOnBarFontMultiplier;
+        let fontSizeAxisX = settings.enableAxisX.fontSize
+        let fontSizeAxisY = settings.enableAxisY.fontSize
+        let fontSizeTitle = settings.title.fontSizeTitle
+        let fontSizeLabelY = settings.enableAxisY.fontSizeLabel
+
 
         this.svg.selectAll('text.title').remove()
         if (!settings.title.hide) {
@@ -242,7 +270,7 @@ export class BarChart implements IVisual {
                 .append('text')
                 .text(settings.title.text)
                 .classed('title', true)
-                .attr("transform", `translate(${paddingLeft - 9}, ${fontSizeAxisY * 2})`)
+                .attr("transform", `translate(${paddingLeft - 9}, ${paddingTop / 2})`)
                 .style('font-size', fontSizeTitle)
         }
 
@@ -275,6 +303,7 @@ export class BarChart implements IVisual {
         this.yAxis.attr('transform', `translate(${paddingLeft}, ${paddingTop})`)
 
 
+
         //функция интерполяции оси Y
         let yScale = scaleLinear()
             .domain([viewModel.dataMax, 0])
@@ -291,8 +320,16 @@ export class BarChart implements IVisual {
         this.xAxis.call(xAxis);
         this.yAxis.call(yAxis);
 
+
         this.xAxis.style('font-size', fontSizeAxisX)
+
+        this.removeHighlightAxisX()
+
+
         this.yAxis.style('font-size', fontSizeAxisY)
+
+
+
 
         //Удаление названия оси перед его добавлением
         this.yAxis
@@ -306,8 +343,9 @@ export class BarChart implements IVisual {
                 .append('text')
                 .classed('labelY', true)
                 .attr('x', -9)  // значения на оси x имеют атрибут x = -9
-                .attr('y', -fontSizeAxisY * 1.5)
-                .text(viewModel.measureDisplayName)
+                .attr('y', -heightYAxis * 0.1)
+                .attr('font-size', settings.enableAxisY.fontSizeLabel)
+                .text(settings.enableAxisY.labelText)
         }
 
         // рисуем горизонтальные линии 
@@ -437,6 +475,14 @@ export class BarChart implements IVisual {
     }
 
 
+    private removeHighlightAxisX() {
+        if (this.selectionManager.getSelectionIds().length === 0) {
+            this.xAxis
+                .selectAll('text')
+                .classed('opacityLess', false)
+        }
+    }
+
     private syncSelectionState(
         selection: Selection<BarChartDataPoint>,
         selectionIds: ISelectionId[],
@@ -453,14 +499,18 @@ export class BarChart implements IVisual {
                 .style("stroke-opacity", opacity);
 
             additionalElements.forEach(e =>
-                e.style("fill-opacity", opacity)
-                    .style("stroke-opacity", opacity)
+                e.classed('opacityLess', false)
+                // .style("fill-opacity", opacity)
+                // .style("stroke-opacity", opacity)
             )
             return;
         }
 
         const self: this = this;
 
+        additionalElements.forEach(e =>
+            e.classed('opacityLess', true)
+        )
 
         selection.each(function (barDataPoint: BarChartDataPoint, index: number) {
             const isSelected: boolean = self.isSelectionIdInArray(selectionIds, barDataPoint.selectionId);
@@ -471,16 +521,22 @@ export class BarChart implements IVisual {
 
 
             d3Select(this)
+
                 .style("fill-opacity", opacity)
                 .style("stroke-opacity", opacity);
 
-            additionalElements.forEach(e =>
-                e.filter((d, i) => i === index)
-                    .style("fill-opacity", opacity)
-                    .style("stroke-opacity", opacity)
-            )
+
+            if (isSelected) {
+                additionalElements.forEach(e =>
+                    e.filter((d, i) => i === index)
+                        .classed('opacityLess', false)
+                    //.style("fill-opacity", 0.4)
+                    // .style("stroke-opacity", opacity)
+                )
+            }
         });
     }
+
 
     private isSelectionIdInArray(selectionIds: ISelectionId[], selectionId: ISelectionId): boolean {
         if (!selectionIds || !selectionId) {
@@ -509,7 +565,16 @@ export class BarChart implements IVisual {
                     objectName: objectName,
                     properties: {
                         text: this.barChartSettings.title.text,
-                        hide: this.barChartSettings.title.hide
+                        hide: this.barChartSettings.title.hide,
+                        fontSizeTitle: this.barChartSettings.title.fontSizeTitle
+                    },
+                    validValues: {
+                        fontSizeTitle: {
+                            numberRange: {
+                                min: 6,
+                                max: 40
+                            }
+                        }
                     },
                     selector: null
                 });
@@ -519,6 +584,15 @@ export class BarChart implements IVisual {
                     objectName: objectName,
                     properties: {
                         show: this.barChartSettings.enableAxisX.show,
+                        fontSize: this.barChartSettings.enableAxisX.fontSize
+                    },
+                    validValues: {
+                        fontSize: {
+                            numberRange: {
+                                min: 6,
+                                max: 30
+                            }
+                        }
                     },
                     selector: null
                 });
@@ -529,6 +603,23 @@ export class BarChart implements IVisual {
                     properties: {
                         show: this.barChartSettings.enableAxisY.show,
                         label: this.barChartSettings.enableAxisY.label,
+                        fontSize: this.barChartSettings.enableAxisY.fontSize,
+                        fontSizeLabel: this.barChartSettings.enableAxisY.fontSizeLabel,
+                        labelText: this.barChartSettings.enableAxisY.labelText
+                    },
+                    validValues: {
+                        fontSize: {
+                            numberRange: {
+                                min: 6,
+                                max: 30
+                            }
+                        },
+                        fontSizeLabel: {
+                            numberRange: {
+                                min: 6,
+                                max: 30
+                            }
+                        }
                     },
                     selector: null
                 });
@@ -559,13 +650,20 @@ export class BarChart implements IVisual {
                     properties: {
                         opacity: this.barChartSettings.generalView.opacity,
                         dataOnBar: this.barChartSettings.generalView.dataOnBar,
-                        enableGradient: this.barChartSettings.generalView.enableGradient
+                        enableGradient: this.barChartSettings.generalView.enableGradient,
+                        fontSizeDataOnBar: this.barChartSettings.generalView.fontSizeDataOnBar
                     },
                     validValues: {
                         opacity: {
                             numberRange: {
                                 min: 10,
                                 max: 100
+                            }
+                        },
+                        fontSizeDataOnBar: {
+                            numberRange: {
+                                min: 6,
+                                max: 30
                             }
                         }
                     },

@@ -10,21 +10,27 @@ export class VisualSettings extends DataViewObjectsParser {
 export class BarChartSettings {
   enableAxisX: {
     show: boolean;
+    fontSize: number;
   };
 
   enableAxisY: {
     show: boolean;
     label:boolean;
+    fontSize: number;
+    fontSizeLabel:number;
+    labelText:string;
   };
 
   generalView: {
     opacity: number;
     dataOnBar:boolean;
     enableGradient:boolean;
+    fontSizeDataOnBar:number;
   };
 
   title: {
     text: string;
     hide:boolean;
+    fontSizeTitle:number;
   };
 }

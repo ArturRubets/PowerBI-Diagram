@@ -26,6 +26,12 @@
                     "type": {
                         "bool": true
                     }
+                },
+                "fontSize": {
+                    "displayName": "Font size",
+                    "type": {
+                        "numeric": true
+                    }
                 }
             }
         },
@@ -36,6 +42,12 @@
                     "displayName": "Enable AxisX",
                     "type": {
                         "bool": true
+                    }
+                },
+                "fontSize": {
+                    "displayName": "Font size",
+                    "type": {
+                        "numeric": true
                     }
                 }
             }
@@ -53,6 +65,24 @@
                     "displayName": "Enable label",
                     "type": {
                         "bool": true
+                    }
+                },
+                "fontSize": {
+                    "displayName": "Font size",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "fontSizeLabel": {
+                    "displayName": "Font size label",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "labelText":{
+                    "displayName": "Label text",
+                    "type":{
+                        "text": true
                     }
                 }
             }
@@ -91,6 +121,12 @@
                     "displayName": "Enable gradient",
                     "type": {
                         "bool": true
+                    }
+                },
+                "fontSizeDataOnBar": {
+                    "displayName": "Font size data on bar",
+                    "type": {
+                        "numeric": true
                     }
                 }
             }
@@ -133,5 +169,6 @@
     },
     "sorting": {
         "default": {}
-    }
+    },
+    "supportsMultiVisualSelection": true
 }
