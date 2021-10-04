@@ -322,10 +322,6 @@ export class BarChart implements IVisual {
 
 
         this.xAxis.style('font-size', fontSizeAxisX)
-
-        this.removeHighlightAxisX()
-
-
         this.yAxis.style('font-size', fontSizeAxisY)
 
 
@@ -469,19 +465,25 @@ export class BarChart implements IVisual {
         });
 
 
+        this.syncSelectionState(barSelectionMerged, this.selectionManager.getSelectionIds() as ISelectionId[],
+            [dataBarSelectionMerged, this.xAxis.selectAll('g.tick text')]);
+
+
+
+
         this.barSelection.exit().remove();
         this.dataBarSelection.exit().remove();
         this.gradientBarSelection.exit().remove();
     }
 
 
-    private removeHighlightAxisX() {
-        if (this.selectionManager.getSelectionIds().length === 0) {
-            this.xAxis
-                .selectAll('text')
-                .classed('opacityLess', false)
-        }
-    }
+    // private removeHighlightAxisX() {
+    //     if (this.selectionManager.getSelectionIds().length === 0) {
+    //         this.xAxis
+    //             .selectAll('text')
+    //             .classed('opacityLess', false)
+    //     }
+    // }
 
     private syncSelectionState(
         selection: Selection<BarChartDataPoint>,
