@@ -57,7 +57,7 @@ let defaultSettings: BarChartSettings = {
         opacity: 100,
         dataOnBar: true,
         enableGradient: true,
-        fontSizeDataOnBar: 7
+        fontSizeDataOnBar: 14
     },
     title: {
         hide: false,
@@ -242,7 +242,7 @@ export class BarChart implements IVisual {
 
         this.svg.attr("width", width).attr("height", height);
 
-        let paddingTop = height * 0.16
+        let paddingTop = height * 0.25
         let paddingBottom = height * 0.12
         let paddingLeft = width * 0.045
         let paddingRight = paddingLeft
@@ -270,7 +270,7 @@ export class BarChart implements IVisual {
                 .append('text')
                 .text(settings.title.text)
                 .classed('title', true)
-                .attr("transform", `translate(${paddingLeft - 9}, ${paddingTop / 2})`)
+                .attr("transform", `translate(${paddingLeft - 9}, ${fontSizeTitle * 1.5})`)
                 .style('font-size', fontSizeTitle)
         }
 
@@ -339,7 +339,7 @@ export class BarChart implements IVisual {
                 .append('text')
                 .classed('labelY', true)
                 .attr('x', -9)  // значения на оси x имеют атрибут x = -9
-                .attr('y', -heightYAxis * 0.1)
+                .attr('y', -settings.enableAxisY.fontSizeLabel * 2)
                 .attr('font-size', settings.enableAxisY.fontSizeLabel)
                 .text(settings.enableAxisY.labelText)
         }
@@ -467,8 +467,6 @@ export class BarChart implements IVisual {
 
         this.syncSelectionState(barSelectionMerged, this.selectionManager.getSelectionIds() as ISelectionId[],
             [dataBarSelectionMerged, this.xAxis.selectAll('g.tick text')]);
-
-
 
 
         this.barSelection.exit().remove();

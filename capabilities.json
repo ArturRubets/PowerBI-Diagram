@@ -27,7 +27,7 @@
                         "bool": true
                     }
                 },
-                "fontSize": {
+                "fontSizeTitle": {
                     "displayName": "Font size",
                     "type": {
                         "numeric": true
