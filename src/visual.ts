@@ -180,7 +180,6 @@ export class BarChart implements IVisual {
     private svg: Selection<any>;
     private barContainer: Selection<SVGElement>;
     private host: IVisualHost;
-    private element: HTMLElement;
     private selectionManager: ISelectionManager;
     private barChartSettings: BarChartSettings;
     private barDataPoints: BarChartDataPoint[];
@@ -204,7 +203,6 @@ export class BarChart implements IVisual {
 
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
-        this.element = options.element;
         this.selectionManager = options.host.createSelectionManager();
         this.selectionManager.registerOnSelectCallback(() => {
             this.syncSelectionState(this.barSelection, <ISelectionId[]>this.selectionManager.getSelectionIds(), []);
@@ -251,19 +249,14 @@ export class BarChart implements IVisual {
         let marginAxisY = height * 0.035
 
 
-        // let fontSizeAxisX = Math.min(height, width) * BarChart.Config.xAxisFontMultiplier;
-        //let fontSizeAxisY = Math.min(height, width) * BarChart.Config.yAxisFontMultiplier;
-        //let fontSizeTitle = Math.min(height, width) * BarChart.Config.titleFontMultiplier;
 
-
-
-        let fontSizeDataOnBar = settings.generalView.fontSizeDataOnBar //Math.min(height, width) * BarChart.Config.dataOnBarFontMultiplier;
+        let fontSizeDataOnBar = settings.generalView.fontSizeDataOnBar 
         let fontSizeAxisX = settings.enableAxisX.fontSize
         let fontSizeAxisY = settings.enableAxisY.fontSize
         let fontSizeTitle = settings.title.fontSizeTitle
-        let fontSizeLabelY = settings.enableAxisY.fontSizeLabel
 
 
+        //------Title------
         this.svg.selectAll('text.title').remove()
         if (!settings.title.hide) {
             this.title = this.svg
@@ -274,6 +267,10 @@ export class BarChart implements IVisual {
                 .style('font-size', fontSizeTitle)
         }
 
+        
+
+
+         //------Отступы------
         //Убираем отступы и оси если пользователь отключил
         if (!settings.enableAxisX.show) {
             paddingBottom = 20
@@ -294,15 +291,12 @@ export class BarChart implements IVisual {
         let heightYAxis = height - paddingTop - paddingBottom
         let widthXAxis = width - paddingLeft - paddingRight
 
-
         //Смещение диаграм
         this.barContainer.attr('transform', `translate(${paddingLeft}, ${paddingTop})`);
         //Смещение оси x
         this.xAxis.attr('transform', `translate(${paddingLeft}, ${heightYAxis + paddingTop})`);
         //Смещение оси y
         this.yAxis.attr('transform', `translate(${paddingLeft}, ${paddingTop})`)
-
-
 
         //функция интерполяции оси Y
         let yScale = scaleLinear()
@@ -319,15 +313,13 @@ export class BarChart implements IVisual {
         let yAxis = axisLeft(yScale).ticks(4);  //ticks - задание количества делений, но движок d3 окончательно сам принимает решение
         this.xAxis.call(xAxis);
         this.yAxis.call(yAxis);
-
-
         this.xAxis.style('font-size', fontSizeAxisX)
         this.yAxis.style('font-size', fontSizeAxisY)
 
 
 
 
-        //Удаление названия оси перед его добавлением
+        //-----Название оси Y------
         this.yAxis
             .selectAll('text.labelY')
             .remove()
@@ -344,7 +336,10 @@ export class BarChart implements IVisual {
                 .text(settings.enableAxisY.labelText)
         }
 
-        // рисуем горизонтальные линии 
+
+
+
+        // -----Горизонтальные линии----- 
         this.yAxis.selectAll(".tick line")
             .classed("grid-line", true)
             .attr("x1", -10)    // для того чтобы линия начиналась от начала значения на оси Y
@@ -358,8 +353,7 @@ export class BarChart implements IVisual {
 
         const opacity: number = viewModel.settings.generalView.opacity / 100;
 
-        //----- Создание градиента
-
+        //----- Создание градиента-----
         this.gradientBarSelection = this.defs
             .selectAll('linearGradient')
             .data(this.barDataPoints);
@@ -392,7 +386,6 @@ export class BarChart implements IVisual {
                 .attr("stop-color", "white")
         }
 
-        //-----------------  Создание градиента
 
 
 
@@ -419,11 +412,11 @@ export class BarChart implements IVisual {
             .style("fill-opacity", opacity)
             .style("stroke-opacity", opacity)
 
-        //------------------  Создание диаграммы
 
 
-        let dataBarSelectionMerged;
+        
         //------ Добавление числа над диаграммой
+        let dataBarSelectionMerged;
         if (settings.generalView.dataOnBar) {
             this.dataBarSelection = this.barContainer
                 .selectAll('.barDataValue')
@@ -446,12 +439,9 @@ export class BarChart implements IVisual {
             this.barContainer.selectAll('text').remove()
         }
 
-        //------------------  Добавление числа над диаграммой
-
 
 
         barSelectionMerged.on('click', (d) => {
-            // Allow selection only if the visual is rendered in a view that supports interactivity (e.g. Report)
             if (this.host.hostCapabilities.allowInteractions) {
                 const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
                 this.selectionManager
@@ -475,19 +465,10 @@ export class BarChart implements IVisual {
     }
 
 
-    // private removeHighlightAxisX() {
-    //     if (this.selectionManager.getSelectionIds().length === 0) {
-    //         this.xAxis
-    //             .selectAll('text')
-    //             .classed('opacityLess', false)
-    //     }
-    // }
-
     private syncSelectionState(
         selection: Selection<BarChartDataPoint>,
         selectionIds: ISelectionId[],
-        additionalElements: Selection<any>[]
-    ): void {
+        additionalElements: Selection<any>[]): void {
         if (!selection || !selectionIds) {
             return;
         }
@@ -500,8 +481,6 @@ export class BarChart implements IVisual {
 
             additionalElements.forEach(e =>
                 e.classed('opacityLess', false)
-                // .style("fill-opacity", opacity)
-                // .style("stroke-opacity", opacity)
             )
             return;
         }
@@ -530,13 +509,10 @@ export class BarChart implements IVisual {
                 additionalElements.forEach(e =>
                     e.filter((d, i) => i === index)
                         .classed('opacityLess', false)
-                    //.style("fill-opacity", 0.4)
-                    // .style("stroke-opacity", opacity)
                 )
             }
         });
     }
-
 
     private isSelectionIdInArray(selectionIds: ISelectionId[], selectionId: ISelectionId): boolean {
         if (!selectionIds || !selectionId) {
