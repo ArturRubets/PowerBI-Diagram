@@ -44,25 +44,25 @@ interface BarChartViewModel {
 let defaultSettings: BarChartSettings = {
     enableAxisX: {
         show: true,
-        fontSize: 16
+        fontSize: null
     },
     enableAxisY: {
         show: true,
         label: false,
-        fontSize: 16,
-        fontSizeLabel: 14,
+        fontSize: null,
+        fontSizeLabel: null,
         labelText: "Units"
     },
     generalView: {
         opacity: 100,
         dataOnBar: true,
         enableGradient: true,
-        fontSizeDataOnBar: 14
+        fontSizeDataOnBar: null
     },
     title: {
         hide: false,
         text: "Analyze",
-        fontSizeTitle: 22
+        fontSizeTitle: null
     }
 };
 
@@ -189,7 +189,8 @@ export class BarChart implements IVisual {
     private defs: Selection<SVGElement>;
     private barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private dataBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
-
+    private categorySelect: Selection<SVGElement>;
+    
     private gradientBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     static Config = {
         solidOpacity: 1,
@@ -225,6 +226,9 @@ export class BarChart implements IVisual {
             .append('g')
             .classed('barContainer', true);
 
+        this.categorySelect = this.svg
+                .append('g')
+                .classed('categorySelect', true);
 
         this.defs = this.svg.append('defs')
 
@@ -240,7 +244,8 @@ export class BarChart implements IVisual {
 
         this.svg.attr("width", width).attr("height", height);
 
-        let paddingTop = height * 0.25
+        let paddingTopInfoPanel = height * 0.05
+        let paddingTop = height * 0.25  //Отступ диаграм
         let paddingBottom = height * 0.12
         let paddingLeft = width * 0.045
         let paddingRight = paddingLeft
@@ -249,12 +254,15 @@ export class BarChart implements IVisual {
         let marginAxisY = height * 0.035
 
 
+        let fontSizeCustom = width / 1.3 < height? width * 0.03: height * 0.045
+        let fontSizeDataOnBar = settings.generalView.fontSizeDataOnBar ? settings.generalView.fontSizeDataOnBar:fontSizeCustom / 1.3
+                
+        let fontSizeAxisX = settings.enableAxisX.fontSize ? settings.enableAxisX.fontSize: fontSizeCustom
+        let fontSizeAxisY = settings.enableAxisY.fontSize ? settings.enableAxisY.fontSize: fontSizeCustom
+        let fontSizeTitle = settings.title.fontSizeTitle ? settings.title.fontSizeTitle: fontSizeCustom * 1.5
+        let fontSizeLabel = settings.enableAxisY.fontSizeLabel ? settings.enableAxisY.fontSizeLabel: fontSizeCustom / 1.8
 
-        let fontSizeDataOnBar = settings.generalView.fontSizeDataOnBar 
-        let fontSizeAxisX = settings.enableAxisX.fontSize
-        let fontSizeAxisY = settings.enableAxisY.fontSize
-        let fontSizeTitle = settings.title.fontSizeTitle
-
+        
 
         //------Title------
         this.svg.selectAll('text.title').remove()
@@ -263,12 +271,29 @@ export class BarChart implements IVisual {
                 .append('text')
                 .text(settings.title.text)
                 .classed('title', true)
-                .attr("transform", `translate(${paddingLeft - 9}, ${fontSizeTitle * 1.5})`)
+                .attr("transform", `translate(${paddingLeft - 9}, ${paddingTopInfoPanel})`)
+                .attr('alignment-baseline', 'hanging')
                 .style('font-size', fontSizeTitle)
         }
 
+        this.categorySelect.html('')
+        let widthCategorySelect = width * 0.16;
+        let heightCategorySelect = height * 0.08
         
-
+        //Отображать фильтр при размерах
+        if(width > 200 && height > 70){            
+            this.categorySelect
+                .attr("transform", "translate(" + (width - paddingRight - widthCategorySelect) + "," + (paddingTopInfoPanel) + ")")    
+            this.categorySelect
+                .append('rect')
+                .attr('x', 0)
+                .attr('y', 0)
+                .attr('width', widthCategorySelect)
+                .attr('height', heightCategorySelect )
+                .attr('rx', 15)
+                .style('fill', 'white')
+        }
+        
 
          //------Отступы------
         //Убираем отступы и оси если пользователь отключил
@@ -294,7 +319,7 @@ export class BarChart implements IVisual {
         //Смещение диаграм
         this.barContainer.attr('transform', `translate(${paddingLeft}, ${paddingTop})`);
         //Смещение оси x
-        this.xAxis.attr('transform', `translate(${paddingLeft}, ${heightYAxis + paddingTop})`);
+        this.xAxis.attr('transform', `translate(${paddingLeft}, ${height * 0.86})`); 
         //Смещение оси y
         this.yAxis.attr('transform', `translate(${paddingLeft}, ${paddingTop})`)
 
@@ -317,8 +342,6 @@ export class BarChart implements IVisual {
         this.yAxis.style('font-size', fontSizeAxisY)
 
 
-
-
         //-----Название оси Y------
         this.yAxis
             .selectAll('text.labelY')
@@ -331,12 +354,11 @@ export class BarChart implements IVisual {
                 .append('text')
                 .classed('labelY', true)
                 .attr('x', -9)  // значения на оси x имеют атрибут x = -9
-                .attr('y', -settings.enableAxisY.fontSizeLabel * 2)
+                .attr('y', -fontSizeAxisY * 2)
                 .attr('font-size', settings.enableAxisY.fontSizeLabel)
+                .attr('alignment-baseline', 'baseline')
                 .text(settings.enableAxisY.labelText)
         }
-
-
 
 
         // -----Горизонтальные линии----- 
