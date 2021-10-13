@@ -63,6 +63,10 @@ let defaultSettings: BarChartSettings = {
         hide: false,
         text: "Analyze",
         fontSizeTitle: null
+    },
+    selectionData:{
+        fontSize: null,
+        color: "#rgb(96,115,189)"
     }
 };
 
@@ -95,8 +99,15 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
     let dataMax: number;
 
     let objects = dataViews[0].metadata.objects;
-
     let barChartSettings: BarChartSettings = {
+        selectionData:{
+            color: dataViewObjects.getValue<powerbi.Fill>(objects, {
+                objectName: "selectionData", propertyName: "color",
+            }, { solid: { color: defaultSettings.selectionData.color } } ).solid.color,
+            fontSize: dataViewObjects.getValue(objects, {
+                objectName: "selectionData", propertyName: "fontSize",
+            }, defaultSettings.selectionData.fontSize)
+        },
         enableAxisX: {
             show: dataViewObjects.getValue(objects, {
                 objectName: "enableAxisX", propertyName: "show",
@@ -190,7 +201,7 @@ export class BarChart implements IVisual {
     private barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private dataBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private categorySelect: Selection<SVGElement>;
-    
+
     private gradientBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     static Config = {
         solidOpacity: 1,
@@ -209,6 +220,7 @@ export class BarChart implements IVisual {
             this.syncSelectionState(this.barSelection, <ISelectionId[]>this.selectionManager.getSelectionIds(), []);
         });
 
+     
         this.svg = d3Select(options.element)
             .append('svg')
             .classed('barChart', true);
@@ -237,6 +249,7 @@ export class BarChart implements IVisual {
     public update(options: VisualUpdateOptions) {
 
         let viewModel: BarChartViewModel = visualTransform(options, this.host);
+        
         let settings = this.barChartSettings = viewModel.settings;
         this.barDataPoints = viewModel.dataPoints;
         let width = options.viewport.width;
@@ -280,6 +293,9 @@ export class BarChart implements IVisual {
         let widthCategorySelect = width * 0.16;
         let heightCategorySelect = height * 0.08
         
+        let categorySelectFontSizeCustom = height < width? height * 0.035: width * 0.025
+        let categorySelectFontSize = settings.selectionData.fontSize && settings.selectionData.fontSize < categorySelectFontSizeCustom?settings.selectionData.fontSize: categorySelectFontSizeCustom
+        
         //Отображать фильтр при размерах
         if(width > 200 && height > 70){            
             this.categorySelect
@@ -292,8 +308,36 @@ export class BarChart implements IVisual {
                 .attr('height', heightCategorySelect )
                 .attr('rx', 15)
                 .style('fill', 'white')
+
+            this.categorySelect
+                 .append('text')
+                 .text(viewModel.categoryDisplayName)
+                 .attr('alignment-baseline', 'middle')
+                 .attr('text-anchor', 'middle')
+                 .attr('x', widthCategorySelect / 2)
+                 .attr('y', heightCategorySelect / 2)
+                 .style('font-size',  categorySelectFontSize)
+                 .style('font-weight', 500)
         }
-        
+
+        this.categorySelect.select('rect').on('click', (d) => {
+            if(this.host.hostCapabilities.allowInteractions){ 
+                let slicerCategory = this.categorySelect.select('#slicerCategory')
+                if(!slicerCategory){
+                    this.categorySelect 
+                    .append('rect')
+                    .attr('id', 'slicerCategory')
+                    .attr('x', 0)
+                    .attr('y', heightCategorySelect + height * 0.01)
+                    .attr('width', widthCategorySelect)
+                    .attr('height', heightCategorySelect * 2)
+                } else{
+                    slicerCategory.remove()
+                } 
+                
+               
+            }
+        })
 
          //------Отступы------
         //Убираем отступы и оси если пользователь отключил
@@ -475,6 +519,9 @@ export class BarChart implements IVisual {
                 (<Event>getEvent()).stopPropagation();
             }
         });
+
+
+
 
 
         this.syncSelectionState(barSelectionMerged, this.selectionManager.getSelectionIds() as ISelectionId[],
@@ -668,7 +715,25 @@ export class BarChart implements IVisual {
                     selector: null
                 });
                 break;
-        };
+            case 'selectionData':
+                objectEnumeration.push({
+                    objectName: objectName,
+                    properties: {
+                        fontSize: this.barChartSettings.selectionData.fontSize,
+                        color: this.barChartSettings.selectionData.color
+                    },
+                    validValues: {
+                        fontSize: {
+                            numberRange: {
+                                min: 6,
+                                max: 30
+                            }
+                        }
+                    },
+                    selector: null
+                });
+                break;
+            };
 
         return objectEnumeration;
     }

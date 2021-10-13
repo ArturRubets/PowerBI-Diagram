@@ -33,4 +33,9 @@ export class BarChartSettings {
     hide:boolean;
     fontSizeTitle:number;
   };
+
+  selectionData:{
+    fontSize:number;
+    color:string;
+  }
 }

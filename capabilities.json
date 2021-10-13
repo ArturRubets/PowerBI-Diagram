@@ -130,6 +130,25 @@
                     }
                 }
             }
+        },
+        "selectionData":{
+            "displayName": "Data selection",
+            "properties": {
+                "fontSize":{
+                    "displayName": "Font size",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "color":{
+                    "displayName": "Color dot",
+                    "type": {
+                        "fill": {
+                            "solid": {"color":true}
+                        }
+                    }
+                }
+            }
         }
     },
     "dataViewMappings": [
