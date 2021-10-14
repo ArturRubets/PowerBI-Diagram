@@ -17,7 +17,7 @@
     "assets": {
         "icon": "assets/icon.png"
     },
-    "externalJS": [],
+    "externalJS": ["node_modules / jquery / dist / jquery.min.js"],
     "style": "style/visual.less",
     "capabilities": "capabilities.json",
     "dependencies": null,

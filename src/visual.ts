@@ -22,6 +22,8 @@ import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import { BarChartSettings } from "./settings";
 type Selection<T1, T2 = T1> = d3.Selection<any, T1, any, T2>;
 import { dataViewObjects, dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
+import * as d3 from "d3";
+import $ from "jquery";
 
 const getEvent = () => require("d3-selection").event;
 
@@ -64,7 +66,7 @@ let defaultSettings: BarChartSettings = {
         text: "Analyze",
         fontSizeTitle: null
     },
-    selectionData:{
+    selectionData: {
         fontSize: null,
         color: "#rgb(96,115,189)"
     }
@@ -100,10 +102,10 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
 
     let objects = dataViews[0].metadata.objects;
     let barChartSettings: BarChartSettings = {
-        selectionData:{
+        selectionData: {
             color: dataViewObjects.getValue<powerbi.Fill>(objects, {
                 objectName: "selectionData", propertyName: "color",
-            }, { solid: { color: defaultSettings.selectionData.color } } ).solid.color,
+            }, { solid: { color: defaultSettings.selectionData.color } }).solid.color,
             fontSize: dataViewObjects.getValue(objects, {
                 objectName: "selectionData", propertyName: "fontSize",
             }, defaultSettings.selectionData.fontSize)
@@ -189,6 +191,7 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
 
 export class BarChart implements IVisual {
     private svg: Selection<any>;
+
     private barContainer: Selection<SVGElement>;
     private host: IVisualHost;
     private selectionManager: ISelectionManager;
@@ -201,8 +204,10 @@ export class BarChart implements IVisual {
     private barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private dataBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private categorySelect: Selection<SVGElement>;
-
+    private element: HTMLElement;
     private gradientBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
+    private divSlicer: HTMLDivElement;
+    private slicerGroup: Selection<any>
     static Config = {
         solidOpacity: 1,
         transparentOpacity: 0.4,
@@ -219,8 +224,8 @@ export class BarChart implements IVisual {
         this.selectionManager.registerOnSelectCallback(() => {
             this.syncSelectionState(this.barSelection, <ISelectionId[]>this.selectionManager.getSelectionIds(), []);
         });
+        this.element = options.element
 
-     
         this.svg = d3Select(options.element)
             .append('svg')
             .classed('barChart', true);
@@ -237,19 +242,19 @@ export class BarChart implements IVisual {
         this.barContainer = this.svg
             .append('g')
             .classed('barContainer', true);
+        this.defs = this.svg.append('defs')
+
 
         this.categorySelect = this.svg
-                .append('g')
-                .classed('categorySelect', true);
-
-        this.defs = this.svg.append('defs')
+            .append('g')
+            .classed('categorySelect', true);
 
     }
 
     public update(options: VisualUpdateOptions) {
 
         let viewModel: BarChartViewModel = visualTransform(options, this.host);
-        
+
         let settings = this.barChartSettings = viewModel.settings;
         this.barDataPoints = viewModel.dataPoints;
         let width = options.viewport.width;
@@ -267,15 +272,15 @@ export class BarChart implements IVisual {
         let marginAxisY = height * 0.035
 
 
-        let fontSizeCustom = width / 1.3 < height? width * 0.03: height * 0.045
-        let fontSizeDataOnBar = settings.generalView.fontSizeDataOnBar ? settings.generalView.fontSizeDataOnBar:fontSizeCustom / 1.3
-                
-        let fontSizeAxisX = settings.enableAxisX.fontSize ? settings.enableAxisX.fontSize: fontSizeCustom
-        let fontSizeAxisY = settings.enableAxisY.fontSize ? settings.enableAxisY.fontSize: fontSizeCustom
-        let fontSizeTitle = settings.title.fontSizeTitle ? settings.title.fontSizeTitle: fontSizeCustom * 1.5
-        let fontSizeLabel = settings.enableAxisY.fontSizeLabel ? settings.enableAxisY.fontSizeLabel: fontSizeCustom / 1.8
+        let fontSizeCustom = width / 1.3 < height ? width * 0.03 : height * 0.045
+        let fontSizeDataOnBar = settings.generalView.fontSizeDataOnBar ? settings.generalView.fontSizeDataOnBar : fontSizeCustom / 1.3
 
-        
+        let fontSizeAxisX = settings.enableAxisX.fontSize ? settings.enableAxisX.fontSize : fontSizeCustom
+        let fontSizeAxisY = settings.enableAxisY.fontSize ? settings.enableAxisY.fontSize : fontSizeCustom
+        let fontSizeTitle = settings.title.fontSizeTitle ? settings.title.fontSizeTitle : fontSizeCustom * 1.5
+        let fontSizeLabel = settings.enableAxisY.fontSizeLabel ? settings.enableAxisY.fontSizeLabel : fontSizeCustom / 1.8
+
+
 
         //------Title------
         this.svg.selectAll('text.title').remove()
@@ -289,57 +294,124 @@ export class BarChart implements IVisual {
                 .style('font-size', fontSizeTitle)
         }
 
+
+
         this.categorySelect.html('')
         let widthCategorySelect = width * 0.16;
         let heightCategorySelect = height * 0.08
-        
-        let categorySelectFontSizeCustom = height < width? height * 0.035: width * 0.025
-        let categorySelectFontSize = settings.selectionData.fontSize && settings.selectionData.fontSize < categorySelectFontSizeCustom?settings.selectionData.fontSize: categorySelectFontSizeCustom
-        
+
+        let categorySelectFontSizeCustom = height < width ? height * 0.035 : width * 0.025
+        let categorySelectFontSize = settings.selectionData.fontSize && settings.selectionData.fontSize < categorySelectFontSizeCustom ? settings.selectionData.fontSize : categorySelectFontSizeCustom
+        let translateXSlicer = width - paddingRight - widthCategorySelect;
+        let translateYSlicer = paddingTopInfoPanel
+
         //Отображать фильтр при размерах
-        if(width > 200 && height > 70){            
+        if (width > 200 && height > 70) {
             this.categorySelect
-                .attr("transform", "translate(" + (width - paddingRight - widthCategorySelect) + "," + (paddingTopInfoPanel) + ")")    
+                .attr("transform", "translate(" + translateXSlicer + "," + translateYSlicer + ")")
+
             this.categorySelect
                 .append('rect')
+                .attr('id', 'select')
                 .attr('x', 0)
                 .attr('y', 0)
                 .attr('width', widthCategorySelect)
-                .attr('height', heightCategorySelect )
+                .attr('height', heightCategorySelect)
                 .attr('rx', 15)
                 .style('fill', 'white')
 
             this.categorySelect
-                 .append('text')
-                 .text(viewModel.categoryDisplayName)
-                 .attr('alignment-baseline', 'middle')
-                 .attr('text-anchor', 'middle')
-                 .attr('x', widthCategorySelect / 2)
-                 .attr('y', heightCategorySelect / 2)
-                 .style('font-size',  categorySelectFontSize)
-                 .style('font-weight', 500)
+                .append('text')
+                .text(viewModel.categoryDisplayName)
+                .attr('alignment-baseline', 'middle')
+                .attr('text-anchor', 'middle')
+                .attr('x', widthCategorySelect / 2)
+                .attr('y', heightCategorySelect / 2)
+                .style('font-size', categorySelectFontSize)
+                .style('font-weight', 500)
         }
 
-        this.categorySelect.select('rect').on('click', (d) => {
-            if(this.host.hostCapabilities.allowInteractions){ 
-                let slicerCategory = this.categorySelect.select('#slicerCategory')
-                if(!slicerCategory){
-                    this.categorySelect 
-                    .append('rect')
-                    .attr('id', 'slicerCategory')
-                    .attr('x', 0)
-                    .attr('y', heightCategorySelect + height * 0.01)
-                    .attr('width', widthCategorySelect)
-                    .attr('height', heightCategorySelect * 2)
-                } else{
-                    slicerCategory.remove()
-                } 
-                
-               
+
+        this.categorySelect.selectAll('rect#select, text').on('click', (d) => {
+            if (this.host.hostCapabilities.allowInteractions) {
+
+
+                let maxHeight:number = heightCategorySelect * 5 / 2;
+                let paddingTop:number = heightCategorySelect * 5 * 0.13
+                let paddingTextHorizontal:number = widthCategorySelect * 0.18
+                let paddingTextVertical:number = heightCategorySelect * 5 * 0.07
+                let translateYSlicerGroup:number = heightCategorySelect + height * 0.01
+                if (!this.slicerGroup) {
+                    this.divSlicer = document.createElement('div')
+                    this.divSlicer.style.position = 'absolute'
+                    this.divSlicer.style.left = `${translateXSlicer}px`
+                    this.divSlicer.style.top = `${translateYSlicer + translateYSlicerGroup}px`
+                    this.divSlicer.style.width = `${widthCategorySelect}px`
+                    this.divSlicer.style.height = `${maxHeight}px`
+                    this.element.appendChild(this.divSlicer)
+                    let svgSlicer = d3Select(this.divSlicer)
+                        .append('svg')
+                        .attr('id', 'svgSlicer')
+                        .attr('x', 0)
+                        .attr('y', 0)
+                        .attr('width', '100%')
+                        .attr('height', '100%')
+
+
+
+                    this.slicerGroup = this.categorySelect
+                        .append('g')
+                        .attr("transform", "translate(" + 0 + "," + translateYSlicerGroup + ")")
+
+
+                    this.slicerGroup
+                        .append('rect')
+                        .attr('id', 'slicerCategory')
+                        .attr('x', 0)
+                        .attr('y', 0)
+                        .attr('width', widthCategorySelect)
+                        .attr('height', maxHeight)
+                        .style('fill', 'white')
+                        .attr('rx', 15)
+
+
+
+
+                    let textGroup = svgSlicer.append('g').attr('id', 'textGroup')
+                        .attr('transform', `translate(${paddingTextHorizontal},${paddingTextVertical})`)
+
+
+                    textGroup
+                        .selectAll('text')
+                        .data(this.barDataPoints)
+                        .enter()
+                        .append('text')
+                        .text(d => d.category)
+                        .attr('x', 0)
+                        .attr('y', (d, i) => paddingTop * i)
+                        .attr('alignment-baseline', 'hanging')
+                        .attr('text-anchor', 'start')
+                        .style('font-size', categorySelectFontSize)
+                       
+                    const lastTextPositionY:number = parseInt($('svg #textGroup text').last().attr('y'))
+                    if(lastTextPositionY > maxHeight){
+                        this.divSlicer.style.overflowY = 'scroll'
+                        svgSlicer.attr('height', lastTextPositionY + paddingTextHorizontal + categorySelectFontSize)
+                    }
+
+                } else {
+                    this.slicerGroup.remove()
+                    this.slicerGroup = null
+                    this.divSlicer.remove()
+                    this.divSlicer = null
+
+                }
             }
         })
 
-         //------Отступы------
+
+
+        //------Отступы------
         //Убираем отступы и оси если пользователь отключил
         if (!settings.enableAxisX.show) {
             paddingBottom = 20
@@ -363,7 +435,7 @@ export class BarChart implements IVisual {
         //Смещение диаграм
         this.barContainer.attr('transform', `translate(${paddingLeft}, ${paddingTop})`);
         //Смещение оси x
-        this.xAxis.attr('transform', `translate(${paddingLeft}, ${height * 0.86})`); 
+        this.xAxis.attr('transform', `translate(${paddingLeft}, ${height * 0.86})`);
         //Смещение оси y
         this.yAxis.attr('transform', `translate(${paddingLeft}, ${paddingTop})`)
 
@@ -480,7 +552,7 @@ export class BarChart implements IVisual {
 
 
 
-        
+
         //------ Добавление числа над диаграммой
         let dataBarSelectionMerged;
         if (settings.generalView.dataOnBar) {
@@ -733,7 +805,7 @@ export class BarChart implements IVisual {
                     selector: null
                 });
                 break;
-            };
+        };
 
         return objectEnumeration;
     }
