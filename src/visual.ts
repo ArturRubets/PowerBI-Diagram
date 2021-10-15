@@ -112,7 +112,8 @@ export class BarChart implements IVisual {
         this.selectionManager = options.host.createSelectionManager();
         this.selectionManager.registerOnSelectCallback(() => {
             this.selectionManager.registerOnSelectCallback((ids: ISelectionId[]) => {
-                //console.log(ids);
+                this.ids = ids
+                this.clickDiagramHandler(ids)
             });
         });
         this.element = options.element
