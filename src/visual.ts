@@ -1,12 +1,7 @@
 "use strict";
-import {
-    select as d3Select
-} from "d3-selection";
+import { select as d3Select} from "d3-selection";
 
-import {
-    scaleLinear,
-    scaleBand
-} from "d3-scale";
+import {scaleLinear,scaleBand} from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import "core-js/stable";
 import "./../style/visual.less";
@@ -196,7 +191,7 @@ export class BarChart implements IVisual {
     private host: IVisualHost;
     private selectionManager: ISelectionManager;
     private barChartSettings: BarChartSettings;
-    private barDataPoints: BarChartDataPoint[];
+    private viewModel: BarChartViewModel
     private xAxis: Selection<SVGElement>;
     private yAxis: Selection<SVGElement>;
     private title: Selection<SVGElement>;
@@ -208,6 +203,10 @@ export class BarChart implements IVisual {
     private gradientBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private divSlicer: HTMLDivElement;
     private slicerGroup: Selection<any>
+    private dataPointsCategorySelector: BarChartDataPoint[]
+    private dataPointsCategorySelectorAll: BarChartDataPoint[]
+    private textCategory: Selection<any>
+    private options: VisualUpdateOptions
     static Config = {
         solidOpacity: 1,
         transparentOpacity: 0.4,
@@ -251,12 +250,112 @@ export class BarChart implements IVisual {
 
     }
 
+    private categoryPanel(heightCategorySelect, widthCategorySelect, height,
+        translateXSlicer, translateYSlicer, categorySelectFontSize,
+        viewModel, heightYAxis, marginAxisY, marginFirstBar, widthXAxis, fontSizeAxisX, fontSizeAxisY, settings, fontSizeDataOnBar) {
+        let maxHeight: number = heightCategorySelect * 5;
+        let paddingTop: number = categorySelectFontSize * 1.7
+        let paddingTextHorizontal: number = widthCategorySelect * 0.18
+        let paddingTextVertical: number = maxHeight * 0.07
+        let translateYSlicerGroup: number = heightCategorySelect + height * 0.01
+
+        this.divSlicer = document.createElement('div')
+        this.divSlicer.style.position = 'absolute'
+        this.divSlicer.style.left = `${translateXSlicer}px`
+        this.divSlicer.style.top = `${translateYSlicer + translateYSlicerGroup}px`
+        this.divSlicer.style.width = `${widthCategorySelect}px`
+        this.divSlicer.style.height = `${maxHeight}px`
+        this.element.appendChild(this.divSlicer)
+        let svgSlicer = d3Select(this.divSlicer)
+            .append('svg')
+            .attr('id', 'svgSlicer')
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', '100%')
+            .attr('height', '100%')
+
+
+
+        this.slicerGroup = this.categorySelect
+            .append('g')
+            .attr("transform", "translate(" + 0 + "," + translateYSlicerGroup + ")")
+
+
+        this.slicerGroup
+            .append('rect')
+            .attr('id', 'slicerCategory')
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', widthCategorySelect)
+            .attr('height', maxHeight)
+            .style('fill', 'white')
+            .attr('rx', 15)
+
+        let textGroup = svgSlicer.append('g').attr('id', 'textGroup')
+            .attr('transform', `translate(${paddingTextHorizontal},${paddingTextVertical})`)
+
+
+        this.textCategory = textGroup
+            .selectAll('text')
+            .data(this.dataPointsCategorySelectorAll)
+            .enter()
+            .append('text')
+            .text(d => d.category)
+            .attr('x', 0)
+            .attr('y', (d, i) => paddingTop * i)
+            .attr('alignment-baseline', 'hanging')
+            .attr('text-anchor', 'start')
+            .style('font-size', categorySelectFontSize)
+
+
+
+
+        const lastTextPositionY: number = parseInt($('svg #textGroup text').last().attr('y'))
+        if (lastTextPositionY > maxHeight) {
+            this.divSlicer.style.overflowY = 'scroll'
+            svgSlicer.attr('height', lastTextPositionY + paddingTextHorizontal + categorySelectFontSize / 2)
+        }
+
+
+
+        this.textCategory.on('click', (d) => {
+            if (this.host.hostCapabilities.allowInteractions) {
+
+
+                const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
+                this.selectionManager
+                    .select(d.selectionId, isCtrlPressed)
+                    .then((ids: ISelectionId[]) => {
+                        this.dataPointsCategorySelector = this.dataPointsCategorySelectorAll.filter(d => ids.find(i => i.equals(d.selectionId)))
+                        
+                        this.update(this.options)
+                    });
+                (<Event>getEvent()).stopPropagation();
+            }
+        });
+
+
+    }
+
     public update(options: VisualUpdateOptions) {
+        this.options = options
+    
+        this.viewModel = visualTransform(options, this.host);
+       
+        
+        if(this.dataPointsCategorySelector && this.dataPointsCategorySelector.length > 0){
+            this.viewModel.dataPoints = this.viewModel.dataPoints.filter(d => this.dataPointsCategorySelector.find(c => c.selectionId
+                .equals(d.selectionId)))
+        }
+        else{
+            this.dataPointsCategorySelectorAll = this.viewModel.dataPoints
+        }
 
-        let viewModel: BarChartViewModel = visualTransform(options, this.host);
-
-        let settings = this.barChartSettings = viewModel.settings;
-        this.barDataPoints = viewModel.dataPoints;
+        
+        
+        let settings = this.barChartSettings = this.viewModel.settings;
+    
+       
         let width = options.viewport.width;
         let height = options.viewport.height;
 
@@ -282,6 +381,7 @@ export class BarChart implements IVisual {
 
 
 
+
         //------Title------
         this.svg.selectAll('text.title').remove()
         if (!settings.title.hide) {
@@ -304,110 +404,6 @@ export class BarChart implements IVisual {
         let categorySelectFontSize = settings.selectionData.fontSize && settings.selectionData.fontSize < categorySelectFontSizeCustom ? settings.selectionData.fontSize : categorySelectFontSizeCustom
         let translateXSlicer = width - paddingRight - widthCategorySelect;
         let translateYSlicer = paddingTopInfoPanel
-
-        //Отображать фильтр при размерах
-        if (width > 200 && height > 70) {
-            this.categorySelect
-                .attr("transform", "translate(" + translateXSlicer + "," + translateYSlicer + ")")
-
-            this.categorySelect
-                .append('rect')
-                .attr('id', 'select')
-                .attr('x', 0)
-                .attr('y', 0)
-                .attr('width', widthCategorySelect)
-                .attr('height', heightCategorySelect)
-                .attr('rx', 15)
-                .style('fill', 'white')
-
-            this.categorySelect
-                .append('text')
-                .text(viewModel.categoryDisplayName)
-                .attr('alignment-baseline', 'middle')
-                .attr('text-anchor', 'middle')
-                .attr('x', widthCategorySelect / 2)
-                .attr('y', heightCategorySelect / 2)
-                .style('font-size', categorySelectFontSize)
-                .style('font-weight', 500)
-        }
-
-
-        this.categorySelect.selectAll('rect#select, text').on('click', (d) => {
-            if (this.host.hostCapabilities.allowInteractions) {
-
-
-                let maxHeight:number = heightCategorySelect * 5 / 2;
-                let paddingTop:number = heightCategorySelect * 5 * 0.13
-                let paddingTextHorizontal:number = widthCategorySelect * 0.18
-                let paddingTextVertical:number = heightCategorySelect * 5 * 0.07
-                let translateYSlicerGroup:number = heightCategorySelect + height * 0.01
-                if (!this.slicerGroup) {
-                    this.divSlicer = document.createElement('div')
-                    this.divSlicer.style.position = 'absolute'
-                    this.divSlicer.style.left = `${translateXSlicer}px`
-                    this.divSlicer.style.top = `${translateYSlicer + translateYSlicerGroup}px`
-                    this.divSlicer.style.width = `${widthCategorySelect}px`
-                    this.divSlicer.style.height = `${maxHeight}px`
-                    this.element.appendChild(this.divSlicer)
-                    let svgSlicer = d3Select(this.divSlicer)
-                        .append('svg')
-                        .attr('id', 'svgSlicer')
-                        .attr('x', 0)
-                        .attr('y', 0)
-                        .attr('width', '100%')
-                        .attr('height', '100%')
-
-
-
-                    this.slicerGroup = this.categorySelect
-                        .append('g')
-                        .attr("transform", "translate(" + 0 + "," + translateYSlicerGroup + ")")
-
-
-                    this.slicerGroup
-                        .append('rect')
-                        .attr('id', 'slicerCategory')
-                        .attr('x', 0)
-                        .attr('y', 0)
-                        .attr('width', widthCategorySelect)
-                        .attr('height', maxHeight)
-                        .style('fill', 'white')
-                        .attr('rx', 15)
-
-
-
-
-                    let textGroup = svgSlicer.append('g').attr('id', 'textGroup')
-                        .attr('transform', `translate(${paddingTextHorizontal},${paddingTextVertical})`)
-
-
-                    textGroup
-                        .selectAll('text')
-                        .data(this.barDataPoints)
-                        .enter()
-                        .append('text')
-                        .text(d => d.category)
-                        .attr('x', 0)
-                        .attr('y', (d, i) => paddingTop * i)
-                        .attr('alignment-baseline', 'hanging')
-                        .attr('text-anchor', 'start')
-                        .style('font-size', categorySelectFontSize)
-                       
-                    const lastTextPositionY:number = parseInt($('svg #textGroup text').last().attr('y'))
-                    if(lastTextPositionY > maxHeight){
-                        this.divSlicer.style.overflowY = 'scroll'
-                        svgSlicer.attr('height', lastTextPositionY + paddingTextHorizontal + categorySelectFontSize)
-                    }
-
-                } else {
-                    this.slicerGroup.remove()
-                    this.slicerGroup = null
-                    this.divSlicer.remove()
-                    this.divSlicer = null
-
-                }
-            }
-        })
 
 
 
@@ -438,6 +434,79 @@ export class BarChart implements IVisual {
         this.xAxis.attr('transform', `translate(${paddingLeft}, ${height * 0.86})`);
         //Смещение оси y
         this.yAxis.attr('transform', `translate(${paddingLeft}, ${paddingTop})`)
+
+
+
+
+        //---Category selector
+        this.categorySelect
+            .attr("transform", "translate(" + translateXSlicer + "," + translateYSlicer + ")")
+
+        this.categorySelect
+            .append('rect')
+            .attr('id', 'select')
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', widthCategorySelect)
+            .attr('height', heightCategorySelect)
+            .attr('rx', 15)
+            .style('fill', 'white')
+
+        this.categorySelect
+            .append('text')
+            .text(this.viewModel.categoryDisplayName)
+            .attr('alignment-baseline', 'middle')
+            .attr('text-anchor', 'middle')
+            .attr('x', widthCategorySelect / 2)
+            .attr('y', heightCategorySelect / 2)
+            .style('font-size', categorySelectFontSize)
+            .style('font-weight', 500)
+
+
+
+        if (this.slicerGroup) {
+            this.slicerGroup.remove()
+            this.slicerGroup = null
+            this.divSlicer.remove()
+            this.divSlicer = null
+            this.categoryPanel(heightCategorySelect, widthCategorySelect, height,
+                translateXSlicer, translateYSlicer, categorySelectFontSize,
+                this.viewModel, heightYAxis, marginAxisY, marginFirstBar, widthXAxis, fontSizeAxisX, fontSizeAxisY, settings, fontSizeDataOnBar)
+        }
+
+        this.categorySelect.selectAll('rect#select, text').on('click', (d) => {
+            if (this.host.hostCapabilities.allowInteractions) {
+                if (!this.slicerGroup) {
+                    this.categoryPanel(heightCategorySelect, widthCategorySelect, height,
+                        translateXSlicer, translateYSlicer, categorySelectFontSize,
+                        this.viewModel, heightYAxis, marginAxisY, marginFirstBar, widthXAxis, fontSizeAxisX, fontSizeAxisY, settings, fontSizeDataOnBar)
+                } else {
+                    this.slicerGroup.remove()
+                    this.slicerGroup = null
+                    this.divSlicer.remove()
+                    this.divSlicer = null
+                    this.dataPointsCategorySelector = null
+                }
+            }
+        })
+
+        //---Category selector
+
+
+
+
+        this.createAxisAndDiagram(this.viewModel, heightYAxis, marginAxisY, marginFirstBar, widthXAxis, fontSizeAxisX, fontSizeAxisY,
+            settings, fontSizeDataOnBar)
+
+
+
+
+      
+    }
+
+    private createAxisAndDiagram(viewModel, heightYAxis, marginAxisY, marginFirstBar, widthXAxis, fontSizeAxisX, fontSizeAxisY,
+        settings, fontSizeDataOnBar) {
+
 
         //функция интерполяции оси Y
         let yScale = scaleLinear()
@@ -494,7 +563,7 @@ export class BarChart implements IVisual {
         //----- Создание градиента-----
         this.gradientBarSelection = this.defs
             .selectAll('linearGradient')
-            .data(this.barDataPoints);
+            .data(viewModel.dataPoints);
 
 
         const gradientBarSelectionMerged = this.gradientBarSelection
@@ -529,9 +598,10 @@ export class BarChart implements IVisual {
 
         //-------- Создание диаграммы
 
+
         this.barSelection = this.barContainer
             .selectAll('.bar')
-            .data(this.barDataPoints);
+            .data(viewModel.dataPoints);
 
         const barSelectionMerged = this.barSelection
             .enter()
@@ -558,7 +628,7 @@ export class BarChart implements IVisual {
         if (settings.generalView.dataOnBar) {
             this.dataBarSelection = this.barContainer
                 .selectAll('.barDataValue')
-                .data(this.barDataPoints);
+                .data(viewModel.dataPoints);
 
 
             dataBarSelectionMerged = this.dataBarSelection
@@ -578,7 +648,6 @@ export class BarChart implements IVisual {
         }
 
 
-
         barSelectionMerged.on('click', (d) => {
             if (this.host.hostCapabilities.allowInteractions) {
                 const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
@@ -593,16 +662,14 @@ export class BarChart implements IVisual {
         });
 
 
-
-
-
         this.syncSelectionState(barSelectionMerged, this.selectionManager.getSelectionIds() as ISelectionId[],
             [dataBarSelectionMerged, this.xAxis.selectAll('g.tick text')]);
 
 
-        this.barSelection.exit().remove();
-        this.dataBarSelection.exit().remove();
-        this.gradientBarSelection.exit().remove();
+            this.barSelection.exit().remove();
+            this.dataBarSelection.exit().remove();
+            this.gradientBarSelection.exit().remove();
+
     }
 
 
@@ -668,11 +735,11 @@ export class BarChart implements IVisual {
     public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): powerbi.VisualObjectInstanceEnumeration {
         let objectName = options.objectName;
         let objectEnumeration: VisualObjectInstance[] = [];
-
+        console.log(this.viewModel);
         if (!this.barChartSettings ||
             !this.barChartSettings.enableAxisX ||
             !this.barChartSettings.enableAxisY ||
-            !this.barDataPoints) {
+            !this.viewModel.dataPoints) {
             return objectEnumeration;
         }
 
@@ -742,7 +809,9 @@ export class BarChart implements IVisual {
                 });
                 break;
             case 'colorSelector':
-                for (let barDataPoint of this.barDataPoints) {
+                
+                
+                for (let barDataPoint of this.viewModel.dataPoints) {
                     objectEnumeration.push({
                         objectName: objectName,
                         displayName: barDataPoint.category,
