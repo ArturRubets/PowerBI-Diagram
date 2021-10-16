@@ -17,7 +17,6 @@ import { BarChartSettings } from "./settings";
 type Selection<T1, T2 = T1> = d3.Selection<any, T1, any, T2>;
 import { dataViewObjects, dataViewWildcard } from "powerbi-visuals-utils-dataviewutils";
 import * as d3 from "d3";
-import $ from "jquery";
 const getEvent = () => require("d3-selection").event;
 
 interface BarChartDataPoint {
@@ -57,7 +56,7 @@ let defaultSettings: BarChartSettings = {
     },
     selectionData: {
         fontSize: null,
-        color: "#5065B6"
+        enable: true
     }
 };
 
@@ -148,7 +147,6 @@ export class BarChart implements IVisual {
 
 
 
-
         this.filterCategoryG = this.svg
             .append('g')
             .classed('filterCategory', true);
@@ -207,115 +205,38 @@ export class BarChart implements IVisual {
         this.heightYAxis = this.height - this.paddingTop - this.paddingBottom
         this.widthXAxis = this.width - this.paddingLeft - this.paddingRight
 
-        this.createFilterCategory()
+        if (this.settings.selectionData.enable) {
+            this.dropDownListDiv.style.display = 'block'
+            this.filterCategoryG.style('display', 'inline')
+            this.createFilterCategory()
+        } else {
+            this.filterCategoryG.style('display', 'none')
+            this.dropDownListDiv.style.display = 'none'
+        }
 
         this.createAxisAndDiagram()
     }
 
-
-    private createFilterCategoryPanel(settings) {
-        let maxHeight: number = settings.height * 5.5;
-        let paddingTop: number = settings.fontSize * 1.8
-        let paddingTextHorizontal: number = settings.width * 0.18
-        let paddingTextVertical: number = settings.fontSize //maxHeight * 0.07
-        let translateYSlicerGroup: number = settings.height + this.height * 0.013
-
-
-        this.dropDownListDiv.style.position = 'absolute'
-        this.dropDownListDiv.style.left = `${settings.translateXSlicer}px`
-        this.dropDownListDiv.style.top = `${settings.translateYSlicer + translateYSlicerGroup}px`
-        this.dropDownListDiv.style.width = `${settings.width}px`
-        this.dropDownListDiv.style.height = `${maxHeight}px`
-
-        this.dropDownListSvg
-            .attr('id', 'dropDownListSvg')
-            .attr('x', 0)
-            .attr('y', 0)
-            .attr('width', '100%')
-            .attr('height', '100%')
-
-        this.dropDownListSvgRect
-            .attr('x', 0)
-            .attr('y', 0)
-            .attr('width', settings.width)
-            .attr('height', maxHeight)
-            .style('fill', 'white')
-            .attr('rx', 15)
-
-
-        this.dropDownListDivInner.style.position = 'absolute'
-        this.dropDownListDivInner.style.left = `0px`
-        this.dropDownListDivInner.style.top = `0px`
-        this.dropDownListDivInner.style.width = `${settings.width}px`
-        this.dropDownListDivInner.style.height = `${maxHeight}px`
-        this.dropDownListDivInner.style.overflowY = 'hidden'
-
-
-        this.dropDownListDivInnerSvg
-            .attr('x', 0)
-            .attr('y', 0)
-            .attr('width', '100%')
-            .attr('height', '100%')
-
-
-
-        this.dropDownListDivInnerSvgTextGroup.attr('transform', `translate(${paddingTextHorizontal},${paddingTextVertical})`)
-
-
-        const text = this.dropDownListDivInnerSvgTextGroup
-            .selectAll('text')
-            .data(this.dataPointsAll)
-
-        this.dropDownListText = text.enter()
-            .append('text')
-            .merge(<any>text)
-            .text(d => d.category)
-            .attr('x', 0)
-            .attr('y', (d, i) => paddingTop * i)
-            .attr('alignment-baseline', 'hanging')
-            .attr('text-anchor', 'start')
-            .style('font-size', settings.fontSize)
-
-
-        text.exit().remove()
-
-        const heightSvg: number = parseInt($('svg g text').last().attr('y')) + paddingTextHorizontal + settings.fontSize
-
-        if (heightSvg > maxHeight) {
-            this.dropDownListDivInner.style.overflowY = 'scroll'
-            this.dropDownListDivInnerSvg.attr('height', heightSvg)
-        }
-
-        this.clickFilterCategoryPanel()
-    }
-
-    private clickFilterCategoryPanel() {
-        this.dropDownListText.on('click', (d) => {
-            if (this.host.hostCapabilities.allowInteractions) {
-                const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
-                this.selectionManager
-                    .select(d.selectionId, isCtrlPressed)
-                    .then((ids: ISelectionId[]) => {
-                        this.clickFilterCategoryPanelHandler(ids)
-                    });
-                (<Event>getEvent()).stopPropagation();
-            }
-        });
-    }
-
-    private clickFilterCategoryPanelHandler(ids: ISelectionId[]) {
-        this.dropDownListIds = ids
-        this.update(this.options)
-    }
-
     private setDataPoints() {
-        let g:powerbi.PrimitiveValue = 0
         if (this.dropDownListIds?.length > 0) {
             this.viewModel.dataPoints = this.dataPointsAll.filter(d => this.dropDownListIds.find(id => id.equals(d.selectionId)))
             this.viewModel.dataMax = Math.max(...this.viewModel.dataPoints.map(d => d.value))
         }
         else {
             this.dataPointsAll = this.viewModel.dataPoints
+        }
+    }
+
+    private createTitle() {
+        if (this.settings.title.hide) {
+            this.title.html('')
+        } else {
+            this.title
+                .text(this.settings.title.text)
+                .classed('title', true)
+                .attr("transform", `translate(${this.paddingLeft - 9}, ${this.paddingTopInfoPanel})`)
+                .attr('alignment-baseline', 'hanging')
+                .style('font-size', this.fontSizeTitle)
         }
     }
 
@@ -342,12 +263,14 @@ export class BarChart implements IVisual {
         this.yAxis.attr('transform', `translate(${this.paddingLeft}, ${this.paddingTop})`)
     }
 
-
     private createFilterCategory() {
         let width = this.width * 0.16;
         let height = this.height * 0.08
         let fontSizeCustom = this.height < this.width ? this.height * 0.035 : this.width * 0.025
-        let fontSize = this.settings.selectionData && this.settings.selectionData.fontSize < fontSizeCustom ? this.settings.selectionData.fontSize : fontSizeCustom
+
+        let fontSize = this.settings.selectionData.fontSize && this.settings.selectionData.fontSize < fontSizeCustom ? this.settings.selectionData.fontSize : fontSizeCustom
+
+
         let translateXSlicer = this.width - this.paddingRight - width;
         let translateYSlicer = this.paddingTopInfoPanel
 
@@ -364,7 +287,7 @@ export class BarChart implements IVisual {
             .attr('y', 0)
             .attr('width', width)
             .attr('height', height)
-            .attr('rx', 15)
+            .attr('rx', width / 2 > height ? width * 0.05 : Math.max(width, height) * 0.1)
             .style('fill', 'white')
 
         this.filterCategoryText
@@ -375,8 +298,6 @@ export class BarChart implements IVisual {
             .attr('y', height / 2)
             .style('font-size', fontSize)
             .style('font-weight', 500)
-
-
 
         this.displayFilterCategory(settings)
 
@@ -407,22 +328,123 @@ export class BarChart implements IVisual {
         }
     }
 
+    private createFilterCategoryPanel(settings) {
+        let maxHeight: number = settings.height * 5.5;
+        let paddingTop: number = settings.fontSize * 1.8
+        let paddingTextHorizontal: number = settings.width * 0.18
+        let paddingTextVertical: number = settings.fontSize
+        let translateYSlicerGroup: number = settings.height + this.height * 0.013
 
-    private createTitle() {
-        if (this.settings.title.hide) {
-            this.title.html('')
-        } else {
-            this.title
-                .text(this.settings.title.text)
-                .classed('title', true)
-                .attr("transform", `translate(${this.paddingLeft - 9}, ${this.paddingTopInfoPanel})`)
-                .attr('alignment-baseline', 'hanging')
-                .style('font-size', this.fontSizeTitle)
+
+        this.dropDownListDiv.style.position = 'absolute'
+        this.dropDownListDiv.style.left = `${settings.translateXSlicer}px`
+        this.dropDownListDiv.style.top = `${settings.translateYSlicer + translateYSlicerGroup}px`
+        this.dropDownListDiv.style.width = `${settings.width}px`
+        this.dropDownListDiv.style.height = `${maxHeight}px`
+
+        this.dropDownListSvg
+            .attr('id', 'dropDownListSvg')
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', '100%')
+            .attr('height', '100%')
+
+        this.dropDownListSvgRect
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', settings.width)
+            .attr('height', maxHeight)
+            .style('fill', 'white')
+            .attr('rx', this.filterCategoryRect.attr('rx'))
+
+
+        this.dropDownListDivInner.style.position = 'absolute'
+        this.dropDownListDivInner.style.left = `0px`
+        this.dropDownListDivInner.style.top = `0px`
+        this.dropDownListDivInner.style.width = `${settings.width}px`
+        this.dropDownListDivInner.style.height = `${maxHeight}px`
+        this.dropDownListDivInner.style.overflowY = 'hidden'
+
+
+        this.dropDownListDivInnerSvg
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', '100%')
+            .attr('height', '100%')
+
+        this.dropDownListDivInnerSvgTextGroup.attr('transform', `translate(${paddingTextHorizontal},${paddingTextVertical})`)
+
+        const text = this.dropDownListDivInnerSvgTextGroup
+            .selectAll('text')
+            .data(this.dataPointsAll)
+
+        this.dropDownListText = text.enter()
+            .append('text')
+            .merge(<any>text)
+            .text(d => d.category)
+            .attr('x', 0)
+            .attr('y', (d, i) => paddingTop * i)
+            .attr('alignment-baseline', 'hanging')
+            .attr('text-anchor', 'start')
+            .style('font-size', settings.fontSize)
+
+        text.exit().remove()
+
+        const textNodes = this.dropDownListText.nodes()
+        const heightSvg: number = parseInt(d3Select(textNodes[textNodes.length - 1]).attr('y')) + paddingTextHorizontal + settings.fontSize
+
+        if (heightSvg > maxHeight) {
+            this.dropDownListDivInner.style.overflowY = 'scroll'
+            this.dropDownListDivInnerSvg.attr('height', heightSvg)
         }
+
+        this.createDotsOnCategoryPanel(this.dropDownListIds, settings)
+        this.clickFilterCategoryPanel(settings)
+    }
+
+    private clickFilterCategoryPanel(settings) {
+        this.dropDownListText.on('click', (d) => {
+            if (this.host.hostCapabilities.allowInteractions) {
+                const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
+                this.selectionManager
+                    .select(d.selectionId, isCtrlPressed)
+                    .then((ids: ISelectionId[]) => {
+                        this.createDotsOnCategoryPanel(ids, settings)
+                        this.clickFilterCategoryPanelHandler(ids)
+                    });
+                (<Event>getEvent()).stopPropagation();
+            }
+        });
+    }
+
+    private createDotsOnCategoryPanel(ids: ISelectionId[], settings) {
+        if (!ids) {
+            return
+        }
+        const textNodes = this.dropDownListText.nodes().filter(d => ids.find(i => i.equals((<BarChartDataPoint>d3Select(d).datum()).selectionId)))
+
+        const circle = this.dropDownListDivInnerSvgTextGroup
+            .selectAll('circle')
+            .data(textNodes)
+
+        circle.enter()
+            .append('circle')
+            .merge(<any>circle)
+            .attr('cx', d => d.getBBox().x + d.getBBox().width + settings.width * 0.08)
+            .attr('cy', d => d.getBBox().y + d.getBBox().height / 1.6)
+            .attr('r', settings.fontSize / 4)
+            .style('fill', d => (<BarChartDataPoint>d3Select(d).datum()).color)
+
+
+        circle.exit().remove()
+    }
+
+    private clickFilterCategoryPanelHandler(ids: ISelectionId[]) {
+        this.dropDownListIds = ids
+        this.update(this.options)
     }
 
     private createAxisAndDiagram() {
-
         //функция интерполяции оси Y
         let yScale = scaleLinear()
             .domain([this.viewModel.dataMax, 0])
@@ -506,7 +528,7 @@ export class BarChart implements IVisual {
         if (this.settings.generalView.enableGradient) {
             gradientBarSelectionMerged
                 .append('stop')
-                .attr("offset", "100%") //Закончить этим цветом
+                .attr("offset", "95%") //Закончить этим цветом
                 .attr("stop-color", "white")
         }
         this.gradientBarSelection.exit().remove();
@@ -518,12 +540,14 @@ export class BarChart implements IVisual {
             .selectAll('.bar')
             .data(this.viewModel.dataPoints);
 
+        
+        
         const barSelectionMerged = this.barSelection
             .enter()
             .append('rect')
             .merge(<any>this.barSelection)
             .classed('bar', true)
-            .attr('rx', 7)
+            .attr('rx', Math.min(10, Math.max(4, xScale.bandwidth() * 0.2)))
             .attr("width", xScale.bandwidth())
             .attr("height", d => this.heightYAxis - this.marginAxisY - yScale(<number>d.value))
             .attr("y", d => yScale(<number>d.value))
@@ -579,7 +603,6 @@ export class BarChart implements IVisual {
             }
         });
     }
-
 
     private clickDiagramHandler(ids: ISelectionId[]) {
         const opacityGeneral: number = 1
@@ -747,7 +770,7 @@ export class BarChart implements IVisual {
                     objectName: objectName,
                     properties: {
                         fontSize: this.settings.selectionData.fontSize,
-                        color: this.settings.selectionData.color
+                        enable: this.settings.selectionData.enable
                     },
                     validValues: {
                         fontSize: {
@@ -765,7 +788,6 @@ export class BarChart implements IVisual {
         return objectEnumeration;
     }
 }
-
 
 function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarChartViewModel {
     let dataViews = options.dataViews;
@@ -799,12 +821,12 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
     let objects = dataViews[0].metadata.objects;
     let barChartSettings: BarChartSettings = {
         selectionData: {
-            color: dataViewObjects.getValue<powerbi.Fill>(objects, {
-                objectName: "selectionData", propertyName: "color",
-            }, { solid: { color: defaultSettings.selectionData.color } }).solid.color,
             fontSize: dataViewObjects.getValue(objects, {
                 objectName: "selectionData", propertyName: "fontSize",
-            }, defaultSettings.selectionData.fontSize)
+            }, defaultSettings.selectionData.fontSize),
+            enable: dataViewObjects.getValue(objects, {
+                objectName: "selectionData", propertyName: "enable",
+            }, defaultSettings.selectionData.enable),
         },
         enableAxisX: {
             show: dataViewObjects.getValue(objects, {

@@ -134,12 +134,10 @@
                         "numeric": true
                     }
                 },
-                "color":{
-                    "displayName": "Color dot",
+                "enable":{
+                    "displayName": "Enable",
                     "type": {
-                        "fill": {
-                            "solid": {"color":true}
-                        }
+                        "bool": true
                     }
                 }
             }

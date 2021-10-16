@@ -35,6 +35,6 @@ export class BarChartSettings {
 
   selectionData:{
     fontSize:number;
-    color:string;
+    enable:boolean;
   }
 }

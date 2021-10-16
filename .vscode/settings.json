@@ -37,5 +37,5 @@
             "url": "./node_modules/powerbi-visuals-api/schema.dependencies.json"
         }        
     ],
-    "compile-hero.disable-compile-files-on-did-save-code": false
+    "compile-hero.disable-compile-files-on-did-save-code": true
 }
