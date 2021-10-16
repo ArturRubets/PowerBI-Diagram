@@ -46,7 +46,6 @@ let defaultSettings: BarChartSettings = {
         labelText: "Units"
     },
     generalView: {
-        opacity: 100,
         dataOnBar: true,
         enableGradient: true,
         fontSizeDataOnBar: null
@@ -70,15 +69,13 @@ export class BarChart implements IVisual {
     private viewModel: BarChartViewModel
     private xAxis: Selection<SVGElement>;
     private yAxis: Selection<SVGElement>;
-    private title: Selection<SVGElement>;
     private defs: Selection<SVGElement>;
     private barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private dataBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
-    private categorySelect: Selection<SVGElement>;
     private element: HTMLElement;
     private gradientBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
-    private divSlicer: HTMLDivElement;
-    private slicerGroup: Selection<any>
+
+
     private dataPointsCategorySelector: BarChartDataPoint[]
     private dataPointsCategorySelectorAll: BarChartDataPoint[]
     private textCategory: Selection<any>
@@ -86,6 +83,17 @@ export class BarChart implements IVisual {
     private bars: Selection<any>
     private dataOnBars: Selection<any>
     private axisX: Selection<any>
+
+
+    private filterCategoryG: Selection<SVGElement>
+    private filterCategoryRect: Selection<SVGElement>
+    private filterCategoryText: Selection<SVGElement>
+    private dropDownListDiv: HTMLDivElement;
+    private dropDownListSvg: Selection<any>
+    //private dropDownListG: Selection<any>
+    private dropDownListRect: Selection<any>
+    private dropDownListTextGroup: Selection<any>
+
 
     private settings: BarChartSettings
     private paddingLeft: number
@@ -105,14 +113,11 @@ export class BarChart implements IVisual {
     private widthXAxis: number
     private width: number
     private height: number
-    private ids: ISelectionId[]
-    private rectOpacity:number
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
         this.selectionManager = options.host.createSelectionManager();
         this.selectionManager.registerOnSelectCallback(() => {
             this.selectionManager.registerOnSelectCallback((ids: ISelectionId[]) => {
-                this.ids = ids
                 this.clickDiagramHandler(ids)
             });
         });
@@ -137,10 +142,27 @@ export class BarChart implements IVisual {
         this.defs = this.svg.append('defs')
 
 
-        this.categorySelect = this.svg
-            .append('g')
-            .classed('categorySelect', true);
 
+
+
+
+        this.filterCategoryG = this.svg
+            .append('g')
+            .classed('filterCategory', true);
+
+        this.filterCategoryRect = this.filterCategoryG
+            .append('rect')
+
+        this.filterCategoryText = this.filterCategoryG
+            .append('text')
+
+        this.dropDownListDiv = document.createElement('div')
+        this.element.appendChild(this.dropDownListDiv)
+
+        this.dropDownListSvg = d3Select(this.dropDownListDiv).append('svg')
+        //this.dropDownListG  = this.dropDownListSvg.append('g')
+        this.dropDownListRect = this.dropDownListSvg.append('rect')
+        this.dropDownListTextGroup = this.dropDownListSvg.append('g')
     }
 
     public update(options: VisualUpdateOptions) {
@@ -168,8 +190,6 @@ export class BarChart implements IVisual {
         this.fontSizeAxisY = this.settings.enableAxisY.fontSize ? this.settings.enableAxisY.fontSize : this.fontSizeCustom
         this.fontSizeTitle = this.settings.title.fontSizeTitle ? this.settings.title.fontSizeTitle : this.fontSizeCustom * 1.5
         this.fontSizeLabel = this.settings.enableAxisY.fontSizeLabel ? this.settings.enableAxisY.fontSizeLabel : this.fontSizeCustom
-        this.rectOpacity = this.viewModel.settings.generalView.opacity / 100;
-
 
         this.createTitle()
         this.setIndentation()
@@ -177,94 +197,89 @@ export class BarChart implements IVisual {
         this.heightYAxis = this.height - this.paddingTop - this.paddingBottom
         this.widthXAxis = this.width - this.paddingLeft - this.paddingRight
 
-        this.createCategorySelector()
+        this.createFilterCategory()
 
         this.createAxisAndDiagram()
     }
 
-    private categoryPanel(heightCategorySelect, widthCategorySelect, height,
-        translateXSlicer, translateYSlicer, categorySelectFontSize,
-        viewModel, heightYAxis, marginAxisY, marginFirstBar, widthXAxis, fontSizeAxisX, fontSizeAxisY, settings, fontSizeDataOnBar) {
-        let maxHeight: number = heightCategorySelect * 5;
-        let paddingTop: number = categorySelectFontSize * 1.7
-        let paddingTextHorizontal: number = widthCategorySelect * 0.18
+    private createFilterCategoryPanel(settings) {
+        let maxHeight: number = settings.height * 5;
+        let paddingTop: number = settings.fontSize * 1.7
+        let paddingTextHorizontal: number = settings.width * 0.18
         let paddingTextVertical: number = maxHeight * 0.07
-        let translateYSlicerGroup: number = heightCategorySelect + height * 0.01
+        let translateYSlicerGroup: number = settings.height + this.height * 0.01
 
-        this.divSlicer = document.createElement('div')
-        this.divSlicer.style.position = 'absolute'
-        this.divSlicer.style.left = `${translateXSlicer}px`
-        this.divSlicer.style.top = `${translateYSlicer + translateYSlicerGroup}px`
-        this.divSlicer.style.width = `${widthCategorySelect}px`
-        this.divSlicer.style.height = `${maxHeight}px`
-        this.element.appendChild(this.divSlicer)
-        let svgSlicer = d3Select(this.divSlicer)
-            .append('svg')
+
+        this.dropDownListDiv.style.position = 'absolute'
+        this.dropDownListDiv.style.left = `${settings.translateXSlicer}px`
+        this.dropDownListDiv.style.top = `${settings.translateYSlicer + translateYSlicerGroup}px`
+        this.dropDownListDiv.style.width = `${settings.width}px`
+        this.dropDownListDiv.style.height = `${maxHeight}px`
+
+        this.dropDownListSvg
             .attr('id', 'svgSlicer')
             .attr('x', 0)
             .attr('y', 0)
             .attr('width', '100%')
             .attr('height', '100%')
-
-
-
-        this.slicerGroup = this.categorySelect
-            .append('g')
             .attr("transform", "translate(" + 0 + "," + translateYSlicerGroup + ")")
 
 
-        this.slicerGroup
-            .append('rect')
-            .attr('id', 'slicerCategory')
+        // this.dropDownListG.attr("transform", "translate(" + 0 + "," + translateYSlicerGroup + ")")
+
+
+
+        this.dropDownListRect
             .attr('x', 0)
             .attr('y', 0)
-            .attr('width', widthCategorySelect)
+            .attr('width', settings.width)
             .attr('height', maxHeight)
             .style('fill', 'white')
             .attr('rx', 15)
 
-        let textGroup = svgSlicer.append('g').attr('id', 'textGroup')
-            .attr('transform', `translate(${paddingTextHorizontal},${paddingTextVertical})`)
+        this.dropDownListTextGroup.attr('transform', `translate(${paddingTextHorizontal},${paddingTextVertical})`)
 
 
-        this.textCategory = textGroup
+        let text = this.dropDownListTextGroup
             .selectAll('text')
             .data(this.dataPointsCategorySelectorAll)
-            .enter()
+        
+        text.enter()
             .append('text')
+            .merge(<any>text)
             .text(d => d.category)
             .attr('x', 0)
             .attr('y', (d, i) => paddingTop * i)
             .attr('alignment-baseline', 'hanging')
             .attr('text-anchor', 'start')
-            .style('font-size', categorySelectFontSize)
+            .style('font-size', settings.fontSize)
+
+
+        text.exit().remove()
+
+        // const lastTextPositionY: number = parseInt($('svg #textGroup text').last().attr('y'))
+        // if (lastTextPositionY > maxHeight) {
+        //     this.divSlicer.style.overflowY = 'scroll'
+        //     svgSlicer.attr('height', lastTextPositionY + paddingTextHorizontal + settings.fontSize / 2)
+        // }
 
 
 
-
-        const lastTextPositionY: number = parseInt($('svg #textGroup text').last().attr('y'))
-        if (lastTextPositionY > maxHeight) {
-            this.divSlicer.style.overflowY = 'scroll'
-            svgSlicer.attr('height', lastTextPositionY + paddingTextHorizontal + categorySelectFontSize / 2)
-        }
+        // this.textCategory.on('click', (d) => {
+        //     if (this.host.hostCapabilities.allowInteractions) {
 
 
+        //         const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
+        //         this.selectionManager
+        //             .select(d.selectionId, isCtrlPressed)
+        //             .then((ids: ISelectionId[]) => {
+        //                 this.dataPointsCategorySelector = this.dataPointsCategorySelectorAll.filter(d => ids.find(i => i.equals(d.selectionId)))
 
-        this.textCategory.on('click', (d) => {
-            if (this.host.hostCapabilities.allowInteractions) {
-
-
-                const isCtrlPressed: boolean = (<MouseEvent>getEvent()).ctrlKey;
-                this.selectionManager
-                    .select(d.selectionId, isCtrlPressed)
-                    .then((ids: ISelectionId[]) => {
-                        this.dataPointsCategorySelector = this.dataPointsCategorySelectorAll.filter(d => ids.find(i => i.equals(d.selectionId)))
-
-                        this.update(this.options)
-                    });
-                (<Event>getEvent()).stopPropagation();
-            }
-        });
+        //                 this.update(this.options)
+        //             });
+        //         (<Event>getEvent()).stopPropagation();
+        //     }
+        // });
 
 
     }
@@ -303,83 +318,88 @@ export class BarChart implements IVisual {
     }
 
 
-    private createCategorySelector() {
-
-        this.categorySelect.html('')
-        let widthCategorySelect = this.width * 0.16;
-        let heightCategorySelect = this.height * 0.08
-
-        let categorySelectFontSizeCustom = this.height < this.width ? this.height * 0.035 : this.width * 0.025
-        let categorySelectFontSize = this.settings.selectionData.fontSize && this.settings.selectionData.fontSize < categorySelectFontSizeCustom ? this.settings.selectionData.fontSize : categorySelectFontSizeCustom
-        let translateXSlicer = this.width - this.paddingRight - widthCategorySelect;
+    private createFilterCategory() {
+        let width = this.width * 0.16;
+        let height = this.height * 0.08
+        let fontSizeCustom = this.height < this.width ? this.height * 0.035 : this.width * 0.025
+        let fontSize = !this.settings.selectionData && this.settings.selectionData.fontSize < fontSizeCustom ? this.settings.selectionData.fontSize : fontSizeCustom
+        let translateXSlicer = this.width - this.paddingRight - width;
         let translateYSlicer = this.paddingTopInfoPanel
 
+        const settings = {
+            width, height, fontSize, translateXSlicer, translateYSlicer
+        }
 
-
-        this.categorySelect
+        this.filterCategoryG
             .attr("transform", "translate(" + translateXSlicer + "," + translateYSlicer + ")")
 
-        this.categorySelect
-            .append('rect')
+        this.filterCategoryRect
             .attr('id', 'select')
             .attr('x', 0)
             .attr('y', 0)
-            .attr('width', widthCategorySelect)
-            .attr('height', heightCategorySelect)
+            .attr('width', width)
+            .attr('height', height)
             .attr('rx', 15)
             .style('fill', 'white')
 
-        this.categorySelect
-            .append('text')
+        this.filterCategoryText
             .text(this.viewModel.categoryDisplayName)
             .attr('alignment-baseline', 'middle')
             .attr('text-anchor', 'middle')
-            .attr('x', widthCategorySelect / 2)
-            .attr('y', heightCategorySelect / 2)
-            .style('font-size', categorySelectFontSize)
+            .attr('x', width / 2)
+            .attr('y', height / 2)
+            .style('font-size', fontSize)
             .style('font-weight', 500)
 
 
 
-        if (this.slicerGroup) {
-            this.slicerGroup.remove()
-            this.slicerGroup = null
-            this.divSlicer.remove()
-            this.divSlicer = null
-            this.categoryPanel(heightCategorySelect, widthCategorySelect, this.height,
-                translateXSlicer, translateYSlicer, categorySelectFontSize,
-                this.viewModel, this.heightYAxis, this.marginAxisY, this.marginFirstBar, this.widthXAxis, this.fontSizeAxisX, this.fontSizeAxisY, this.settings, this.fontSizeDataOnBar)
-        }
+        // if (this.slicerGroup) {
+        //     this.slicerGroup.remove()
+        //     this.slicerGroup = null
+        //     this.divSlicer.remove()
+        //     this.divSlicer = null
+        //     this.categoryPanel()
+        // }
+        this.clickFilterCategory(settings)
 
-        this.categorySelect.selectAll('rect#select, text').on('click', (d) => {
+    }
+    private clickFilterCategory(settings) {
+        this.filterCategoryG.on('click', (d) => {
             if (this.host.hostCapabilities.allowInteractions) {
-                if (!this.slicerGroup) {
-                    this.categoryPanel(heightCategorySelect, widthCategorySelect, this.height,
-                        translateXSlicer, translateYSlicer, categorySelectFontSize,
-                        this.viewModel, this.heightYAxis, this.marginAxisY, this.marginFirstBar, this.widthXAxis, this.fontSizeAxisX, this.fontSizeAxisY, this.settings, this.fontSizeDataOnBar)
-                } else {
-                    this.slicerGroup.remove()
-                    this.slicerGroup = null
-                    this.divSlicer.remove()
-                    this.divSlicer = null
-                    this.dataPointsCategorySelector = null
-                }
+                this.createFilterCategoryPanel(settings)
+
+                // if (!this.slicerGroup) {
+                //     this.categoryPanel()
+                // } else {
+                //     this.slicerGroup.remove()
+                //     this.slicerGroup = null
+                //     this.divSlicer.remove()
+                //     this.divSlicer = null
+                //     this.dataPointsCategorySelector = null
+                // }
             }
         })
     }
 
 
     private createTitle() {
-        this.title?.remove()
-        if (!this.settings.title.hide) {
-            this.title = this.svg
-                .append('text')
-                .text(this.settings.title.text)
-                .classed('title', true)
-                .attr("transform", `translate(${this.paddingLeft - 9}, ${this.paddingTopInfoPanel})`)
-                .attr('alignment-baseline', 'hanging')
-                .style('font-size', this.fontSizeTitle)
+        if (this.settings.title.hide) {
+            this.settings.title.text = null
         }
+        const text = this.svg
+            .selectAll('text.title')
+            .data([this.settings.title.text])
+
+        text.enter()
+            .append('text')
+            .merge(<any>text)
+            .text(t => t)
+            .classed('title', true)
+            .attr("transform", `translate(${this.paddingLeft - 9}, ${this.paddingTopInfoPanel})`)
+            .attr('alignment-baseline', 'hanging')
+            .style('font-size', this.fontSizeTitle)
+
+        text.exit().remove()
     }
 
     private createAxisAndDiagram() {
@@ -470,13 +490,11 @@ export class BarChart implements IVisual {
                 .attr("offset", "100%") //Закончить этим цветом
                 .attr("stop-color", "white")
         }
-
+        this.gradientBarSelection.exit().remove();
 
 
 
         //-------- Создание диаграммы
-
-
         this.barSelection = this.barContainer
             .selectAll('.bar')
             .data(this.viewModel.dataPoints);
@@ -484,12 +502,8 @@ export class BarChart implements IVisual {
         const barSelectionMerged = this.barSelection
             .enter()
             .append('rect')
-            .classed('bar', true)
             .merge(<any>this.barSelection)
-
-
-
-        barSelectionMerged
+            .classed('bar', true)
             .attr('rx', 7)
             .attr("width", xScale.bandwidth())
             .attr("height", d => this.heightYAxis - this.marginAxisY - yScale(<number>d.value))
@@ -497,12 +511,7 @@ export class BarChart implements IVisual {
             .attr("x", d => xScale(d.category))
             .attr("fill", (dataPoint: BarChartDataPoint, i: number) => `url(#Gradient${i + 1})`)
 
-
-        if (!this.ids || this.ids.length === 0) {
-            barSelectionMerged
-                .style("fill-opacity", this.rectOpacity)
-                .style("stroke-opacity", this.rectOpacity)
-        }
+        this.barSelection.exit().remove();
 
 
         //------ Добавление числа над диаграммой
@@ -528,7 +537,7 @@ export class BarChart implements IVisual {
         } else {
             this.barContainer.selectAll('text').remove()
         }
-
+        this.dataBarSelection.exit().remove();
 
         this.bars = this.barContainer.selectAll('rect.bar')
         this.dataOnBars = this.barContainer.selectAll('text.barDataValue')
@@ -536,12 +545,6 @@ export class BarChart implements IVisual {
 
 
         this.clickDiagram()
-        // this.clickDiagramHandler(this.ids)
-
-        this.barSelection.exit().remove();
-        this.dataBarSelection.exit().remove();
-        this.gradientBarSelection.exit().remove();
-
     }
 
     private clickDiagram() {
@@ -551,7 +554,6 @@ export class BarChart implements IVisual {
                 this.selectionManager
                     .select(d.selectionId, isCtrlPressed)
                     .then((ids: ISelectionId[]) => {
-                        this.ids = ids
                         this.clickDiagramHandler(ids)
                     });
                 (<Event>getEvent()).stopPropagation();
@@ -561,8 +563,8 @@ export class BarChart implements IVisual {
 
 
     private clickDiagramHandler(ids: ISelectionId[]) {
-        const opacitySelected: number = this.rectOpacity / 2
-        const opacityGeneral: number = this.rectOpacity
+        const opacityGeneral: number = 1
+        const opacitySelected: number = opacityGeneral / 2
         if (ids.length === 0) {
             this.bars
                 .style("fill-opacity", opacityGeneral)
@@ -706,18 +708,11 @@ export class BarChart implements IVisual {
                 objectEnumeration.push({
                     objectName: objectName,
                     properties: {
-                        opacity: this.settings.generalView.opacity,
                         dataOnBar: this.settings.generalView.dataOnBar,
                         enableGradient: this.settings.generalView.enableGradient,
                         fontSizeDataOnBar: this.settings.generalView.fontSizeDataOnBar
                     },
                     validValues: {
-                        opacity: {
-                            numberRange: {
-                                min: 30,
-                                max: 100
-                            }
-                        },
                         fontSizeDataOnBar: {
                             numberRange: {
                                 min: 6,
@@ -816,7 +811,6 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
             }, defaultSettings.enableAxisY.labelText),
         },
         generalView: {
-            opacity: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "opacity" }, defaultSettings.generalView.opacity),
             dataOnBar: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "dataOnBar" }, defaultSettings.generalView.dataOnBar),
             enableGradient: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "enableGradient" }, defaultSettings.generalView.enableGradient),
             fontSizeDataOnBar: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "fontSizeDataOnBar" }, defaultSettings.generalView.fontSizeDataOnBar)

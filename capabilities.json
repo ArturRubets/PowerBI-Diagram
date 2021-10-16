@@ -105,12 +105,6 @@
         "generalView": {
             "displayName": "General View",
             "properties": {
-                "opacity": {
-                    "displayName": "Bars Opacity",
-                    "type": {
-                        "integer": true
-                    }
-                },
                 "dataOnBar": {
                     "displayName": "Enable data on bar",
                     "type": {

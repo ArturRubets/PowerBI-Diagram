@@ -22,7 +22,6 @@ export class BarChartSettings {
   };
 
   generalView: {
-    opacity: number;
     dataOnBar:boolean;
     enableGradient:boolean;
     fontSizeDataOnBar:number;
