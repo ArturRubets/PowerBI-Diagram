@@ -156,6 +156,7 @@ export class BarChart implements IVisual {
         this.dropDownListSvg = d3Select(this.dropDownListDiv).append('svg')
         this.dropDownListSvgRect = this.dropDownListSvg.append('rect')
         this.dropDownListDivInner = document.createElement('div')
+        this.dropDownListDivInner.classList.add('scrollbar')
         this.dropDownListDiv.appendChild(this.dropDownListDivInner)
         this.dropDownListDivInnerSvg = d3Select(this.dropDownListDivInner).append('svg')
         this.dropDownListDivInnerSvgTextGroup = this.dropDownListDivInnerSvg.append('g')
@@ -405,14 +406,18 @@ export class BarChart implements IVisual {
 
         //Установка высоты панели фильтров, в зависимости от колчст значений 
         const heightPanelActual: number = this.dropDownListDivInnerSvgTextGroup.node().getBBox().height + paddingTextVertical * 1.5
-        this.dropDownListSvg.attr('height',heightPanelActual)
-        this.dropDownListSvgRect.attr('height',heightPanelActual)
-        this.dropDownListDivInner.style.height = `${heightPanelActual}px`
-        this.dropDownListDivInnerSvg.attr('height', heightPanelActual)
-        this.dropDownListDiv.style.height = `${heightPanelActual}px`
+       
+
 
         if (heightPanelActual > maxHeight) {
-            this.dropDownListDivInner.style.overflowY = 'scroll'            
+            this.dropDownListDivInner.style.overflowY = 'scroll'  
+            this.dropDownListDivInnerSvg.attr('height', heightPanelActual)          
+        } else{
+            this.dropDownListSvg.attr('height',heightPanelActual)
+            this.dropDownListSvgRect.attr('height',heightPanelActual)
+            this.dropDownListDivInner.style.height = `${heightPanelActual}px`        
+            this.dropDownListDiv.style.height = `${heightPanelActual}px`
+            this.dropDownListDivInnerSvg.attr('height', heightPanelActual)          
         }
 
         this.createDotsOnCategoryPanel(this.dropDownListIds, settings)
