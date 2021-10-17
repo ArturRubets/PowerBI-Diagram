@@ -67,6 +67,12 @@
                         "bool": true
                     }
                 },
+                "line": {
+                    "displayName": "Enable line",
+                    "type": {
+                        "bool": true
+                    }
+                },
                 "fontSize": {
                     "displayName": "Font size",
                     "type": {

@@ -42,7 +42,8 @@ let defaultSettings: BarChartSettings = {
         label: false,
         fontSize: null,
         fontSizeLabel: null,
-        labelText: "Units"
+        labelText: "Units",
+        line:true
     },
     generalView: {
         dataOnBar: true,
@@ -69,17 +70,16 @@ export class BarChart implements IVisual {
     private xAxis: Selection<SVGElement>;
     private yAxis: Selection<SVGElement>;
     private defs: Selection<SVGElement>;
-    private barSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
-    private dataBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
+    private bar: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private element: HTMLElement;
-    private gradientBarSelection: d3.Selection<d3.BaseType, any, d3.BaseType, any>;
     private options: VisualUpdateOptions
     private bars: Selection<any>
     private dataOnBars: Selection<any>
     private axisX: Selection<any>
     private title: Selection<any>
-
-
+    private xScale: d3.ScaleBand<any>
+    private yScale: d3.ScaleLinear<any, any, any>
+    private labelY: Selection<any>
     private filterCategoryG: Selection<SVGElement>
     private filterCategoryRect: Selection<SVGElement>
     private filterCategoryText: Selection<SVGElement>
@@ -92,7 +92,8 @@ export class BarChart implements IVisual {
     private dropDownListText: Selection<any>
     private dropDownListIds: ISelectionId[]
     private dataPointsAll: BarChartDataPoint[]
-
+    private arrowPath: Selection<any>
+    private arrowG: Selection<any>
 
     private settings: BarChartSettings
     private paddingLeft: number
@@ -147,30 +148,19 @@ export class BarChart implements IVisual {
 
 
 
-        this.filterCategoryG = this.svg
-            .append('g')
-            .classed('filterCategory', true);
-
-        this.filterCategoryRect = this.filterCategoryG
-            .append('rect')
-
-        this.filterCategoryText = this.filterCategoryG
-            .append('text')
-
+        this.filterCategoryG = this.svg.append('g').classed('filterCategory', true)
+        this.filterCategoryRect = this.filterCategoryG.append('rect')
+        this.filterCategoryText = this.filterCategoryG.append('text')
         this.dropDownListDiv = document.createElement('div')
         this.element.appendChild(this.dropDownListDiv)
         this.dropDownListSvg = d3Select(this.dropDownListDiv).append('svg')
         this.dropDownListSvgRect = this.dropDownListSvg.append('rect')
-
-
         this.dropDownListDivInner = document.createElement('div')
         this.dropDownListDiv.appendChild(this.dropDownListDivInner)
         this.dropDownListDivInnerSvg = d3Select(this.dropDownListDivInner).append('svg')
         this.dropDownListDivInnerSvgTextGroup = this.dropDownListDivInnerSvg.append('g')
-
-
-
-
+        this.arrowG = this.filterCategoryG.append('g')
+        this.arrowPath = this.arrowG.append('path')
     }
 
     public update(options: VisualUpdateOptions) {
@@ -190,7 +180,6 @@ export class BarChart implements IVisual {
         this.marginFirstBar = this.paddingLeft
         this.marginAxisY = this.height * 0.035
 
-
         this.fontSizeCustom = this.width / 1.3 < this.height ? this.width * 0.03 : this.height * 0.045
         this.fontSizeDataOnBar = this.settings.generalView.fontSizeDataOnBar ? this.settings.generalView.fontSizeDataOnBar : this.fontSizeCustom / 1.3
 
@@ -198,23 +187,16 @@ export class BarChart implements IVisual {
         this.fontSizeAxisY = this.settings.enableAxisY.fontSize ? this.settings.enableAxisY.fontSize : this.fontSizeCustom
         this.fontSizeTitle = this.settings.title.fontSizeTitle ? this.settings.title.fontSizeTitle : this.fontSizeCustom * 1.5
         this.fontSizeLabel = this.settings.enableAxisY.fontSizeLabel ? this.settings.enableAxisY.fontSizeLabel : this.fontSizeCustom
-
-        this.createTitle()
+        
         this.setIndentation()
 
-        this.heightYAxis = this.height - this.paddingTop - this.paddingBottom
-        this.widthXAxis = this.width - this.paddingLeft - this.paddingRight
-
-        if (this.settings.selectionData.enable) {
-            this.dropDownListDiv.style.display = 'block'
-            this.filterCategoryG.style('display', 'inline')
-            this.createFilterCategory()
-        } else {
-            this.filterCategoryG.style('display', 'none')
-            this.dropDownListDiv.style.display = 'none'
-        }
-
-        this.createAxisAndDiagram()
+        this.createFilterCategory(this.settings.selectionData.enable)     
+        this.createTitle()
+        this.createAxis(this.settings.enableAxisY.line)
+        this.nameAxisY(this.settings.enableAxisY.label)
+        this.createGradient(this.settings.generalView.enableGradient)
+        this.createDiagram()
+        this.createDataOnBars(this.settings.generalView.dataOnBar)
     }
 
     private setDataPoints() {
@@ -261,22 +243,30 @@ export class BarChart implements IVisual {
         this.xAxis.attr('transform', `translate(${this.paddingLeft}, ${this.height * 0.86})`);
         //Смещение оси y
         this.yAxis.attr('transform', `translate(${this.paddingLeft}, ${this.paddingTop})`)
+
+        this.heightYAxis = this.height - this.paddingTop - this.paddingBottom
+        this.widthXAxis = this.width - this.paddingLeft - this.paddingRight
     }
 
-    private createFilterCategory() {
+    private createFilterCategory(enable) {
+        if (enable) {
+            this.dropDownListDiv.style.display = 'block'
+            this.filterCategoryG.style('display', 'inline')
+            
+        } else {
+            this.filterCategoryG.style('display', 'none')
+            this.dropDownListDiv.style.display = 'none'
+            return
+        }
+
         let width = this.width * 0.16;
         let height = this.height * 0.08
-        let fontSizeCustom = this.height < this.width ? this.height * 0.035 : this.width * 0.025
 
+        let fontSizeCustom = this.height >= this.width * 0.6 ? this.fontSizeCustom * 0.8 : this.fontSizeCustom
         let fontSize = this.settings.selectionData.fontSize && this.settings.selectionData.fontSize < fontSizeCustom ? this.settings.selectionData.fontSize : fontSizeCustom
-
-
         let translateXSlicer = this.width - this.paddingRight - width;
         let translateYSlicer = this.paddingTopInfoPanel
-
-        const settings = {
-            width, height, fontSize, translateXSlicer, translateYSlicer
-        }
+        let paddingHorizontal = width * 0.1
 
         this.filterCategoryG
             .attr("transform", "translate(" + translateXSlicer + "," + translateYSlicer + ")")
@@ -293,15 +283,37 @@ export class BarChart implements IVisual {
         this.filterCategoryText
             .text(this.viewModel.categoryDisplayName)
             .attr('alignment-baseline', 'middle')
-            .attr('text-anchor', 'middle')
-            .attr('x', width / 2)
+            .attr('text-anchor', 'start')
+            .attr('x', paddingHorizontal)
             .attr('y', height / 2)
             .style('font-size', fontSize)
             .style('font-weight', 500)
 
+        const heightArrow = this.filterCategoryText.node().getBBox().height / 4
+        const widthArrow = this.filterCategoryText.node().getBBox().width * 0.14
+        const settings = {
+            width, height, fontSize, translateXSlicer, translateYSlicer, paddingHorizontal, widthArrow, heightArrow
+        }
+        this.displayArrow(settings)
         this.displayFilterCategory(settings)
-
         this.clickFilterCategory(settings)
+    }
+
+    private displayArrow(settings) {
+        this.arrowG.attr('transform', `translate(${settings.width - settings.paddingHorizontal}, ${settings.height / 2})`)
+        this.arrowPath
+            .attr('d', `
+                M 0 0
+                l ${-settings.widthArrow / 2} ${-settings.heightArrow}
+                l ${-settings.widthArrow / 2} ${settings.heightArrow}           
+            `)
+            .style('fill', 'none')
+            .style('stroke-width', settings.fontSizeCustom * 0.1)
+            .style('stroke', '#474747')
+    }
+
+    private rotateArrow(settings, angle) {
+        this.arrowPath.attr('transform', `translate(0,${angle === -180 ? -settings.height * 0.1 : 0}) rotate(${angle}, ${-settings.widthArrow / 2},0)`)
     }
 
     private clickFilterCategory(settings) {
@@ -309,9 +321,11 @@ export class BarChart implements IVisual {
             if (this.host.hostCapabilities.allowInteractions) {
                 if (this.filterCategoryG.classed('clicked')) {
                     this.filterCategoryG.classed('clicked', false)
+                    this.rotateArrow(settings, 0)
 
                 } else {
                     this.filterCategoryG.classed('clicked', true)
+                    this.rotateArrow(settings, -180)
                 }
                 this.displayFilterCategory(settings)
             }
@@ -331,7 +345,6 @@ export class BarChart implements IVisual {
     private createFilterCategoryPanel(settings) {
         let maxHeight: number = settings.height * 5.5;
         let paddingTop: number = settings.fontSize * 1.8
-        let paddingTextHorizontal: number = settings.width * 0.18
         let paddingTextVertical: number = settings.fontSize
         let translateYSlicerGroup: number = settings.height + this.height * 0.013
 
@@ -372,7 +385,7 @@ export class BarChart implements IVisual {
             .attr('width', '100%')
             .attr('height', '100%')
 
-        this.dropDownListDivInnerSvgTextGroup.attr('transform', `translate(${paddingTextHorizontal},${paddingTextVertical})`)
+        this.dropDownListDivInnerSvgTextGroup.attr('transform', `translate(${settings.paddingHorizontal},${paddingTextVertical})`)
 
         const text = this.dropDownListDivInnerSvgTextGroup
             .selectAll('text')
@@ -390,12 +403,16 @@ export class BarChart implements IVisual {
 
         text.exit().remove()
 
-        const textNodes = this.dropDownListText.nodes()
-        const heightSvg: number = parseInt(d3Select(textNodes[textNodes.length - 1]).attr('y')) + paddingTextHorizontal + settings.fontSize
+        //Установка высоты панели фильтров, в зависимости от колчст значений 
+        const heightPanelActual: number = this.dropDownListDivInnerSvgTextGroup.node().getBBox().height + paddingTextVertical * 1.5
+        this.dropDownListSvg.attr('height',heightPanelActual)
+        this.dropDownListSvgRect.attr('height',heightPanelActual)
+        this.dropDownListDivInner.style.height = `${heightPanelActual}px`
+        this.dropDownListDivInnerSvg.attr('height', heightPanelActual)
+        this.dropDownListDiv.style.height = `${heightPanelActual}px`
 
-        if (heightSvg > maxHeight) {
-            this.dropDownListDivInner.style.overflowY = 'scroll'
-            this.dropDownListDivInnerSvg.attr('height', heightSvg)
+        if (heightPanelActual > maxHeight) {
+            this.dropDownListDivInner.style.overflowY = 'scroll'            
         }
 
         this.createDotsOnCategoryPanel(this.dropDownListIds, settings)
@@ -444,36 +461,45 @@ export class BarChart implements IVisual {
         this.update(this.options)
     }
 
-    private createAxisAndDiagram() {
+    private createAxis(IsHorizontalLine) {
         //функция интерполяции оси Y
-        let yScale = scaleLinear()
+        this.yScale = scaleLinear()
             .domain([this.viewModel.dataMax, 0])
             .range([0, this.heightYAxis - this.marginAxisY]);
         //функция интерполяции оси X
-        let xScale = scaleBand()
+        this.xScale = scaleBand()
             .domain(this.viewModel.dataPoints.map(d => d.category))
             .rangeRound([this.marginFirstBar, this.widthXAxis])
             .padding(0.6);
 
         //создаем оси
-        let xAxis = axisBottom(xScale);
-        let yAxis = axisLeft(yScale).ticks(4);  //ticks - задание количества делений, но движок d3 окончательно сам принимает решение
+        let xAxis = axisBottom(this.xScale);
+        let yAxis = axisLeft(this.yScale).ticks(4);  //ticks - задание количества делений, но движок d3 окончательно сам принимает решение
         this.xAxis.call(xAxis);
         this.yAxis.call(yAxis);
         this.xAxis.style('font-size', this.fontSizeAxisX)
         this.yAxis.style('font-size', this.fontSizeAxisY)
+        this.axisX = this.xAxis.selectAll('g .tick text')
 
 
-        //-----Название оси Y------
-        this.yAxis
-            .selectAll('text.labelY')
-            .remove()
+        // -----Горизонтальные линии----- 
+        if (IsHorizontalLine) {
+            this.yAxis.selectAll(".tick line")
+                .classed("grid-line", true)
+                .attr("x1", -10)    // для того чтобы линия начиналась от начала значения на оси Y
+                .attr("y1", -this.fontSizeAxisY)    // для того чтобы линия стояла над значением на оси Y
+                .attr("x2", this.widthXAxis) // ширина линии равняется ширине оси Xs
+                .attr("y2", -10);   // для того чтобы линия стояла над значением на оси Y
+        }
 
+        this.yAxis.selectAll('.tick text').classed('textYAxis', true)
+    }
 
-
-        if (this.settings.enableAxisY.label) {
+    private nameAxisY(IsShow) {
+        if (IsShow) {
             //Добавление названия оси Y
-            this.yAxis
+            this.labelY?.remove()
+            this.labelY = this.yAxis
                 .select('g.tick')
                 .append('text')
                 .classed('labelY', true)
@@ -482,36 +508,23 @@ export class BarChart implements IVisual {
                 .attr('font-size', this.fontSizeLabel)
                 .attr('alignment-baseline', 'baseline')
                 .text(this.settings.enableAxisY.labelText)
+        } else{
+            this.labelY.remove()
         }
+    }
 
-
-        // -----Горизонтальные линии----- 
-        this.yAxis.selectAll(".tick line")
-            .classed("grid-line", true)
-            .attr("x1", -10)    // для того чтобы линия начиналась от начала значения на оси Y
-            .attr("y1", -this.fontSizeAxisY)    // для того чтобы линия стояла над значением на оси Y
-            .attr("x2", this.widthXAxis) // ширина линии равняется ширине оси Xs
-            .attr("y2", -10);   // для того чтобы линия стояла над значением на оси Y
-
-        this.yAxis.selectAll('.tick text').classed('textYAxis', true)
-
-
-
-
-
+    private createGradient(enableGradient) {
         //----- Создание градиента-----
-        this.gradientBarSelection = this.defs
+        let gradientBarSelection = this.defs
             .selectAll('linearGradient')
             .data(this.viewModel.dataPoints);
 
 
-        const gradientBarSelectionMerged = this.gradientBarSelection
+        const gradientBarSelectionMerged = gradientBarSelection
             .enter()
             .append("linearGradient")
-            .merge(<any>this.gradientBarSelection)
-
-        gradientBarSelectionMerged
-            .attr("id", (dataPoint: BarChartDataPoint, i: number) => `Gradient${i + 1}`)  //Индекс для того чтобы для каждого bar был свой элемент linearGradient нужно прописать айди уникальный
+            .merge(<any>gradientBarSelection)
+            .attr("id", (dataPoint, i: number) => `Gradient${i + 1}`)  //Индекс для того чтобы для каждого bar был свой элемент linearGradient нужно прописать айди уникальный
             .attr("x1", "0")    //Координаты заливки чтобы залить вертикально сверху вниз
             .attr("x2", "0")
             .attr("y1", "0")
@@ -525,69 +538,58 @@ export class BarChart implements IVisual {
             .attr("offset", "0%")   //Начать с этого цвета 
             .attr("stop-color", (dataPoint: BarChartDataPoint) => dataPoint.color)
 
-        if (this.settings.generalView.enableGradient) {
+        if (enableGradient) {
             gradientBarSelectionMerged
                 .append('stop')
                 .attr("offset", "95%") //Закончить этим цветом
                 .attr("stop-color", "white")
         }
-        this.gradientBarSelection.exit().remove();
 
+        gradientBarSelection.exit().remove();
+    }
 
-
-        //-------- Создание диаграммы
-        this.barSelection = this.barContainer
+    private createDiagram() {
+        this.bar = this.barContainer
             .selectAll('.bar')
             .data(this.viewModel.dataPoints);
 
-        
-        
-        const barSelectionMerged = this.barSelection
+        this.bars = this.bar
             .enter()
             .append('rect')
-            .merge(<any>this.barSelection)
+            .merge(<any>this.bar)
             .classed('bar', true)
-            .attr('rx', Math.min(10, Math.max(4, xScale.bandwidth() * 0.2)))
-            .attr("width", xScale.bandwidth())
-            .attr("height", d => this.heightYAxis - this.marginAxisY - yScale(<number>d.value))
-            .attr("y", d => yScale(<number>d.value))
-            .attr("x", d => xScale(d.category))
-            .attr("fill", (dataPoint: BarChartDataPoint, i: number) => `url(#Gradient${i + 1})`)
+            .attr('rx', Math.min(10, Math.max(4, this.xScale.bandwidth() * 0.2)))
+            .attr("width", this.xScale.bandwidth())
+            .attr("height", d => this.heightYAxis - this.marginAxisY - this.yScale(<number>d.value))
+            .attr("y", d => this.yScale(<number>d.value))
+            .attr("x", d => this.xScale(d.category))
+            .attr("fill", (dataPoint, i: number) => `url(#Gradient${i + 1})`)
 
-        this.barSelection.exit().remove();
-
-
-        //------ Добавление числа над диаграммой
-        let dataBarSelectionMerged;
-        if (this.settings.generalView.dataOnBar) {
-            this.dataBarSelection = this.barContainer
-                .selectAll('.barDataValue')
-                .data(this.viewModel.dataPoints);
-
-
-            dataBarSelectionMerged = this.dataBarSelection
-                .enter()
-                .append('text')
-                .classed('barDataValue', true)
-                .merge(<any>this.dataBarSelection);
-
-
-            dataBarSelectionMerged
-                .text((d: BarChartDataPoint) => Math.round(<number>d.value))
-                .attr("y", (d: BarChartDataPoint) => yScale(<number>d.value) - this.fontSizeDataOnBar / 2)
-                .attr("x", (d: BarChartDataPoint) => xScale(d.category) + xScale.bandwidth() / 2)
-                .style('font-size', this.fontSizeDataOnBar)
-        } else {
-            this.barContainer.selectAll('text').remove()
-        }
-        this.dataBarSelection.exit().remove();
-
-        this.bars = this.barContainer.selectAll('rect.bar')
-        this.dataOnBars = this.barContainer.selectAll('text.barDataValue')
-        this.axisX = this.xAxis.selectAll('g .tick text')
-
+        this.bar.exit().remove();
 
         this.clickDiagram()
+    }
+
+    private createDataOnBars(enable) {
+        //------ Добавление числа над диаграммой
+        let barDataValue = this.barContainer
+            .selectAll('.barDataValue')
+            .data(this.viewModel.dataPoints);
+
+        this.dataOnBars = barDataValue
+            .enter()
+            .append('text')
+            .classed('barDataValue', true)
+            .merge(<any>barDataValue)
+            .text((d: BarChartDataPoint) => Math.round(<number>d.value))
+            .attr("y", (d: BarChartDataPoint) => this.yScale(<number>d.value) - this.fontSizeDataOnBar / 2)
+            .attr("x", (d: BarChartDataPoint) => this.xScale(d.category) + this.xScale.bandwidth() / 2)
+            .style('font-size', this.fontSizeDataOnBar)
+
+        barDataValue.exit().remove();
+
+        if(!enable)
+            this.dataOnBars?.html('')
     }
 
     private clickDiagram() {
@@ -607,43 +609,44 @@ export class BarChart implements IVisual {
     private clickDiagramHandler(ids: ISelectionId[]) {
         const opacityGeneral: number = 1
         const opacitySelected: number = opacityGeneral / 2
+
         if (ids.length === 0) {
             this.bars
-                .style("fill-opacity", opacityGeneral)
+                ?.style("fill-opacity", opacityGeneral)
                 .style("stroke-opacity", opacityGeneral);
             this.dataOnBars
-                .style("fill-opacity", opacityGeneral)
+                ?.style("fill-opacity", opacityGeneral)
                 .style("stroke-opacity", opacityGeneral);
             this.axisX
-                .style("fill-opacity", opacityGeneral)
+                ?.style("fill-opacity", opacityGeneral)
                 .style("stroke-opacity", opacityGeneral);
             return
         }
 
         this.bars.each((d: BarChartDataPoint, index, nodeList: d3.BaseType[]) => {
             if (ids.find(i => i.equals(d.selectionId))) {
-                this.bars.filter((d, i) => i === index)
+                this.bars?.filter((d, i) => i === index)
                     .style("fill-opacity", opacityGeneral)
                     .style("stroke-opacity", opacityGeneral);
 
-                this.dataOnBars.filter((d, i) => i === index)
+                this.dataOnBars?.filter((d, i) => i === index)
                     .style("fill-opacity", opacityGeneral)
                     .style("stroke-opacity", opacityGeneral);
 
-                this.axisX.filter((d, i) => i === index)
+                this.axisX?.filter((d, i) => i === index)
                     .style("fill-opacity", opacityGeneral)
                     .style("stroke-opacity", opacityGeneral);
 
             }
             else {
-                this.bars.filter((d, i) => i === index)
+                this.bars?.filter((d, i) => i === index)
                     .style("fill-opacity", opacitySelected)
                     .style("stroke-opacity", opacitySelected);
 
-                this.dataOnBars.filter((d, i) => i === index)
+                this.dataOnBars?.filter((d, i) => i === index)
                     .style("fill-opacity", opacitySelected)
                     .style("stroke-opacity", opacitySelected);
-                this.axisX.filter((d, i) => i === index)
+                this.axisX?.filter((d, i) => i === index)
                     .style("fill-opacity", opacitySelected)
                     .style("stroke-opacity", opacitySelected);
             }
@@ -707,7 +710,8 @@ export class BarChart implements IVisual {
                         label: this.settings.enableAxisY.label,
                         fontSize: this.settings.enableAxisY.fontSize,
                         fontSizeLabel: this.settings.enableAxisY.fontSizeLabel,
-                        labelText: this.settings.enableAxisY.labelText
+                        labelText: this.settings.enableAxisY.labelText,
+                        line:  this.settings.enableAxisY.line,
                     },
                     validValues: {
                         fontSize: {
@@ -852,6 +856,9 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
             labelText: dataViewObjects.getValue(objects, {
                 objectName: "enableAxisY", propertyName: "labelText",
             }, defaultSettings.enableAxisY.labelText),
+            line: dataViewObjects.getValue(objects, {
+                objectName: "enableAxisY", propertyName: "line",
+            }, defaultSettings.enableAxisY.line),
         },
         generalView: {
             dataOnBar: dataViewObjects.getValue(objects, { objectName: "generalView", propertyName: "dataOnBar" }, defaultSettings.generalView.dataOnBar),

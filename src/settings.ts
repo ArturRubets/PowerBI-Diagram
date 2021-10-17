@@ -19,6 +19,7 @@ export class BarChartSettings {
     fontSize: number;
     fontSizeLabel:number;
     labelText:string;
+    line:boolean;
   };
 
   generalView: {
