@@ -172,7 +172,7 @@ export class BarChart implements IVisual {
         this.svg.attr("width", this.width).attr("height", this.height);
         this.viewModel = visualTransform(options, this.host);
         if(this.viewModel.dataPoints.length === 0){
-            this.svg.html('')
+            this.barContainer.html('')
             return
         }
         this.setDataPoints()
