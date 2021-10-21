@@ -514,7 +514,7 @@ export class BarChart implements IVisual {
                 .attr('alignment-baseline', 'baseline')
                 .text(this.settings.enableAxisY.labelText)
         } else{
-            this.labelY.remove()
+            this.labelY?.remove()
         }
     }
 
