@@ -165,11 +165,16 @@ export class BarChart implements IVisual {
     }
 
     public update(options: VisualUpdateOptions) {
+        debugger
         this.options = options
         this.width = options.viewport.width;
         this.height = options.viewport.height;
         this.svg.attr("width", this.width).attr("height", this.height);
         this.viewModel = visualTransform(options, this.host);
+        if(this.viewModel.dataPoints.length === 0){
+            this.svg.html('')
+            return
+        }
         this.setDataPoints()
 
         this.settings = this.viewModel.settings;
