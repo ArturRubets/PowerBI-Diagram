@@ -165,17 +165,17 @@ export class BarChart implements IVisual {
     }
 
     public update(options: VisualUpdateOptions) {
-        debugger
         this.options = options
         this.width = options.viewport.width;
         this.height = options.viewport.height;
         this.svg.attr("width", this.width).attr("height", this.height);
         this.viewModel = visualTransform(options, this.host);
-        if(this.viewModel.dataPoints.length === 0){
-            this.barContainer.html('')
-            return
-        }
+
         this.setDataPoints()
+        // if(this.viewModel.dataPoints.length === 0){
+        //     this.barContainer.html('')
+        //     return
+        // }
 
         this.settings = this.viewModel.settings;
         this.paddingTopInfoPanel = this.height * 0.05
@@ -203,6 +203,10 @@ export class BarChart implements IVisual {
         this.createGradient(this.settings.generalView.enableGradient)
         this.createDiagram()
         this.createDataOnBars(this.settings.generalView.dataOnBar)
+
+        if(this.viewModel.dataPoints.length === 0){
+            this.barContainer.html('')
+        }
     }
 
     private setDataPoints() {
@@ -255,6 +259,7 @@ export class BarChart implements IVisual {
     }
 
     private createFilterCategory(enable) {
+        
         if (enable) {
             this.dropDownListDiv.style.display = 'block'
             this.filterCategoryG.style('display', 'inline')
@@ -286,8 +291,9 @@ export class BarChart implements IVisual {
             .attr('rx', width / 2 > height ? width * 0.05 : Math.max(width, height) * 0.1)
             .style('fill', 'white')
 
+
         this.filterCategoryText
-            .text(this.viewModel.categoryDisplayName)
+            .text(this.viewModel.categoryDisplayName || '(Empty)')
             .attr('alignment-baseline', 'middle')
             .attr('text-anchor', 'start')
             .attr('x', paddingHorizontal)
@@ -813,25 +819,6 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
         measureDisplayName: ""
     };
 
-    if (!dataViews
-        || !dataViews[0]
-        || !dataViews[0].categorical
-        || !dataViews[0].categorical.categories
-        || !dataViews[0].categorical.categories[0].source
-        || !dataViews[0].categorical.values
-        || !dataViews[0].categorical.values[0].values
-        || !(typeof dataViews[0].categorical.values[0].values[0] === 'number')
-    ) {
-        return viewModel;
-    }
-
-    let categorical = dataViews[0].categorical;
-    let category = categorical.categories[0];
-    let dataValue = categorical.values[0];
-
-    let barChartDataPoints: BarChartDataPoint[] = [];
-    let dataMax: number;
-
     let objects = dataViews[0].metadata.objects;
     let barChartSettings: BarChartSettings = {
         selectionData: {
@@ -881,6 +868,28 @@ function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarCh
             fontSizeTitle: dataViewObjects.getValue(objects, { objectName: "title", propertyName: "fontSizeTitle" }, defaultSettings.title.fontSizeTitle)
         }
     };
+    viewModel.settings = barChartSettings
+
+    if (!dataViews
+        || !dataViews[0]
+        || !dataViews[0].categorical
+        || !dataViews[0].categorical.categories
+        || !dataViews[0].categorical.categories[0].source
+        || !dataViews[0].categorical.values
+        || !dataViews[0].categorical.values[0].values
+        || !(typeof dataViews[0].categorical.values[0].values[0] === 'number')
+    ) {
+        return viewModel;
+    }
+
+    let categorical = dataViews[0].categorical;
+    let category = categorical.categories[0];
+    let dataValue = categorical.values[0];
+
+    let barChartDataPoints: BarChartDataPoint[] = [];
+    let dataMax: number;
+
+
 
     dataMax = <number>dataValue.maxLocal || <number>dataValue.max;
 
